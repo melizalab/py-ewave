@@ -11,6 +11,10 @@ import wave
 
 test_dir = "test"
 unsupported_dir = "unsupported"
+test_file = os.path.join(test_dir,"test.wav")
+
+def setup():
+    if os.path.exists(test_file): os.remove(test_file)
 
 def read_file(fname):
     fp = wave.open(fname,"r")
@@ -24,6 +28,24 @@ def read_file(fname):
         assert data.shape[0] == fp.nframes
         assert data.shape[1] == fp.nchannels
 
+def compare_fmt(fname):
+    """ test against sndfile-info output """
+    pass
+
+def write_file(fname):
+    fp1 = wave.open(fname,"r")
+    fp2 = wave.open(test_file,"w",
+                    sampling_rate=fp1.sampling_rate,
+                    dtype=fp1.dtype,
+                    nchannels=fp1.nchannels)
+    assert fp2.filename == test_file
+    assert fp2.sampling_rate == fp1.sampling_rate
+    assert fp2.dtype == fp1.dtype
+    assert fp2.nchannels == fp1.nchannels
+    fp2.write(fp1.read())
+    assert fp2.nframes == fp1.nframes
+    
+
 @raises(wave.Error)
 def read_unsupported(fname):
     read_file(fname)
@@ -35,6 +57,11 @@ def test01_read():
 def test02_unsupported():
     for fname in glob.iglob(os.path.join(unsupported_dir, "*.wav")):
         yield read_unsupported, fname
-        
+
+def test03_write():
+    for fname in glob.iglob(os.path.join(test_dir, "*.wav")):
+        yield write_file, fname
+    
+
 # Variables:
 # End:

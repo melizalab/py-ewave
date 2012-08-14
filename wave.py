@@ -46,16 +46,16 @@ def open(f, *args, **kwargs):
 class wavfile(object):
     def __init__(self, f, mode='r', sampling_rate=20000, dtype='h', nchannels=1):
         if isinstance(f, basestring):
-            if mode not in ('r','r+','w','a'):
-                raise ValueError, "Invalid mode (use 'r', 'r+', 'w', or 'a')"
+            if mode not in ('r','r+','w'):
+                raise ValueError, "Invalid mode (use 'r', 'r+', 'w')"
             self.fp = file(f, mode=mode+'b')
         else:
             self.fp = f
 
-        if self.mode[0] in ('r','a'):
+        if self.mode in ('r','r+'):
             self._load_header()
         else:
-            self._make_header(sampling_rate, dtype, nchannels)
+            self._write_header(sampling_rate, dtype, nchannels)
 
     def __enter__(self):
         return self
@@ -63,6 +63,12 @@ class wavfile(object):
     def __exit__(self, exc_type, exc_val, exc_tb):
         self.close()
         return exc_val
+
+    def __del__(self):
+        if hasattr(self,'fp') and hasattr(self.fp,'close'):
+            self.flush()
+            self.fp.close()
+
 
     @property
     def filename(self):
@@ -91,7 +97,10 @@ class wavfile(object):
 
     @property
     def nframes(self):
-        nbytes = self._data_chunk.getsize()
+        if hasattr(self, "_data_chunk"):
+            nbytes = self._data_chunk.getsize()
+        else:
+            nbytes = self._bytes_written
         return nbytes // (self.dtype.itemsize * self.nchannels)
 
     @property
@@ -99,9 +108,65 @@ class wavfile(object):
         """ Data storage type """
         return self._dtype
 
-    def close(self):
-        """ Close the file handle and sets modification/access time """
-        if hasattr(self,'fp') and hasattr(self.fp,'close'): self.fp.close()
+    def flush(self):
+        """ flush data to disk and update header with correct size information """
+        import struct
+        if not self.mode in ('w','r+'): return
+        self.fp.seek(4)
+        self.fp.write(struct.pack("<l", self._data_offset + self._bytes_written - 8))
+        self.fp.seek(self._data_offset - 4)
+        self.fp.write(struct.pack("<l", self._bytes_written))
+        self.fp.flush()
+                              
+    def read(self, frames=None, offset=0, memmap='c'):
+        """
+        Return contents of file. Default is is to memmap the data in
+        copy-on-write mode, which means read operations are delayed
+        until the data are actually accessed or modified.
+
+        For multichannel WAV files, the data are returned as a 2D
+        array with dimensions frames x channels
+        
+        - frames: number of frames to return. None for all the frames in the file
+        - offset: start read at specific frame
+        - memmap: if False, reads the whole file into memory at once; if not, returns
+                  a numpy.memmap object using this value as the mode argument. 'c'
+                  corresponds to copy-on-write; use 'r+' to write changes to disk. Be
+                  warned that 'w' modes may corrupt data.
+        """
+        from numpy import memmap as mmap
+        from numpy import fromfile
+        if self.mode == 'w': raise Error, 'file is write-only'
+        # find offset
+        coff = self._data_offset + offset * self.nchannels * self._dtype.itemsize
+        if frames is None: frames = self.nframes - offset
+        if memmap:
+            A = mmap(self.fp, offset=coff, dtype=self._dtype, mode=memmap,
+                     shape=frames*self.nchannels)
+        else:
+            pos = self.fp.tell()
+            self.fp.seek(coff)
+            A = fromfile(self.fp, dtype=self._dtype, count=frames*self.nchannels)
+            self.fp.seek(pos)
+
+        if self.nchannels > 1:
+            nsamples = (A.size // self.nchannels) * self.nchannels
+            A = A[:nsamples]
+            A.shape = (nsamples // self.nchannels, self.nchannels)
+        return A
+            
+    def write(self, data):
+        """ Write data to the WAVE file
+
+        - data : input data, in any form that can be converted to an
+                 array with the file's dtype
+        """
+        from numpy import asarray
+        if self.mode=='r': raise Error, 'file is read-only'
+
+        data = asarray(data, self._dtype).tostring()
+        self.fp.write(data)
+        self._bytes_written += len(data)
 
     def _load_header(self):
         """ Read metadata from header """
@@ -169,9 +234,13 @@ class wavfile(object):
                 raise Error, "unsupported bit depth for IEEE floats: %d" % bits
         else:
             raise Error, 'unsupported format: %r' % (wFormatTag,)
+        self._data_offset = self._data_chunk.offset + 8
+        if self.mode == "r+":
+            self.fp.seek(0,2)
+            self._bytes_written = self.fp.tell() - self._data_offset
 
 
-    def _make_header(self, sampling_rate, dtype, nchannels):
+    def _write_header(self, sampling_rate, dtype, nchannels):
         """ Create header for wave file based on sampling rate and data type """
         # this is a bit tricky b/c Chunk is a read-only class
         # however, this only gets called for a pristine file
@@ -180,84 +249,46 @@ class wavfile(object):
         import struct
 
         # main chunk
-        out = struct.pack('4s<l4s','RIFF',0,'WAVE')
+        out = struct.pack('<4sl4s','RIFF',0,'WAVE')
 
         # fmt chunk
         self._dtype = ndtype(dtype)
         self._nchannels = int(nchannels)
         self._framerate = int(sampling_rate)
-        fmt_size = 16
-        if self._dtype.kind == 'i':
-            if self._dtype.itemsize <= 2:
-                tag = WAVE_FORMAT_PCM
-            else:
-                tag = WAVE_FORMAT_EXTENSIBLE
-                fmt_size += 22
+        if self._dtype.kind == 'i' or (self._dtype.kind == 'u' and self._dtype.itemsize==1):
+            tag = etag = WAVE_FORMAT_PCM
         elif self._dtype.kind == 'f':
-            tag = WAVE_FORMAT_IEEE_FLOAT
+            tag =etag = WAVE_FORMAT_IEEE_FLOAT
         else:
             raise Error, "unsupported type %r cannot be stored in wave files" % self._dtype
+        fmt_size = 16
+        if self._dtype.itemsize > 2 or self._nchannels > 2:
+            fmt_size = 22
+            tag = WAVE_FORMAT_EXTENSIBLE
 
-        out += struct.pack('4slhhllhh',
+        out += struct.pack('<4slHHllHH',
                            'fmt ', fmt_size, tag, self._nchannels, self._framerate,
                            self._nchannels * self._framerate * self._dtype.itemsize,
                            self._nchannels * self._dtype.itemsize,
                            self._dtype.itemsize * 8)
         if tag == WAVE_FORMAT_EXTENSIBLE:
-            pass
+            out += struct.pack('<HHlH14s', 22,
+                               self._dtype.itemsize * 8, # use the full bitdepth
+                               3,                        # L,R,unspecified
+                               etag,
+                               '\x00\x00\x00\x00\x10\x00\x80\x00\x00\xaa\x008\x9b\x71')
 
+        # fact chunk
+        out += struct.pack("<4sll","fact",4,self._dtype.itemsize)
+        # beginning of data chunk
+        out += struct.pack("<4sl","data",0)
+
+        self.fp.seek(0)
+        self.fp.write(out)
+        self._data_offset = self.fp.tell()
+        self._bytes_written = 0
         
-    def read(self, frames=None, offset=0, memmap='c'):
-        """
-        Return contents of file. Default is is to memmap the data in
-        copy-on-write mode, which means read operations are delayed
-        until the data are actually accessed or modified.
-
-        For multichannel WAV files, the data are returned as a 2D
-        array with dimensions frames x channels
         
-        - frames: number of frames to return. None for all the frames in the file
-        - offset: start read at specific frame
-        - memmap: if False, reads the whole file into memory at once; if not, returns
-                  a numpy.memmap object using this value as the mode argument. 'c'
-                  corresponds to copy-on-write; use 'r+' to write changes to disk. Be
-                  warned that 'w' modes may corrupt data.
-        """
-        from numpy import memmap as mmap
-        from numpy import fromfile
-        # find offset
-        coff = self._data_chunk.offset + 8 + offset * self.nchannels * self._dtype.itemsize
-        if frames is None: frames = self.nframes - offset
-        if memmap:
-            A = mmap(self.fp, offset=coff, dtype=self._dtype, mode=memmap,
-                     shape=frames*self.nchannels)
-        else:
-            pos = self.fp.tell()
-            self.fp.seek(coff)
-            A = fromfile(self.fp, dtype=self._dtype, count=frames*self.nchannels)
-            self.fp.seek(pos)
-
-        if self.nchannels > 1:
-            nsamples = (A.size // self.nchannels) * self.nchannels
-            A = A[:nsamples]
-            A.shape = (nsamples // self.nchannels, self.nchannels)
-        return A
-            
-    def write(self, data):
-        """
-        Write data to the WAV file. Not supported for files opened in
-        read mode.
-
-        data: input data, in any form that can be converted to an
-              array with an appropriate data type.
-        """
-        from numpy import asarray
-        if self.mode=='r':
-            raise Error, 'file is read-only'
-
-        data = nx.asarray(data, self._dtype)
-        self.fp.writeframes(data.tostring())
-
         
 # Variables:
 # End:
