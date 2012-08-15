@@ -11,8 +11,10 @@ is based):
   encoding.
 
 * Data access is through numpy.memmap whenever possible. This speeds reading
-  large files and allows files to be edited in place (open file in 'r+' mode and
-  call read() with memmap='r+')
+  large files and allows files to be edited in place, by opening a file in 'r+'
+  mode and calling read() with memmap='r+'; appending also works in this mode,
+  as long as the data chunk is the last in the file. Files opened in 'w+' mode
+  can be read after writing.
 
 * A single class handles both read and write operations.
 
@@ -21,7 +23,7 @@ is based):
 Note that WAV files cannot store more than 2-4 GiB of data. Mu-law, A-law, and
 other exotic encoding schemes are not supported. Does not support bit packings
 where the container sizes don't correspond to mmapable types (e.g. 24 bit). Try
-libsndfile for those sorts of files.
+libsndfile for those sorts of files.  
 
 Copyright (C) 2012 Dan Meliza <dan // AT // meliza.org>
 Created 2012-03-29
@@ -47,6 +49,13 @@ class wavfile(object):
                        'f','d':  32,64-bit IEEE float
         nchannels:     for 'w' mode only, set the number of channels to store
         """
+        from numpy import dtype as ndtype
+        # validate arguments; props are overwritten if header is read
+        self._dtype = ndtype(dtype)
+        self._nchannels = int(nchannels)
+        self._framerate = int(sampling_rate)
+        self._file_format()
+            
         if isinstance(f, basestring):
             if mode not in ('r','r+','w','w+'):
                 raise ValueError, "Invalid mode (use 'r', 'r+', 'w', 'w+')"
@@ -90,12 +99,6 @@ class wavfile(object):
     @property
     def nchannels(self):
         return self._nchannels
-
-    @property
-    def channels(self):
-        if self.nchannels == 1: return ('pcm',)
-        else: return ('left','right')
-        # add support for > 2 channels
 
     @property
     def nframes(self):
@@ -163,8 +166,9 @@ class wavfile(object):
         """ Write data to the WAVE file
 
         - data : input data, in any form that can be converted to an array with
-                 the file's dtype. Note that different storage types have
-                 different ranges. See rescale().
+                 the file's dtype. Data are silently coerced into an array whose
+                 shape matches the number of channels in the file. Note that
+                 different storage types have different ranges. See rescale().
         """
         from numpy import asarray
         if self.mode=='r': raise Error, 'file is read-only'
@@ -188,6 +192,7 @@ class wavfile(object):
         self._fmt_chunk = None
         self._fact_chunk = None
         self._data_chunk = None
+        self._postdata_chunk = None
         while 1:
             try:
                 chunk = Chunk(fp, bigendian=0)
@@ -202,7 +207,10 @@ class wavfile(object):
                 if not self._fmt_chunk:
                     raise Error, 'data chunk before fmt chunk'
                 self._data_chunk = chunk
-                break
+            elif self._data_chunk and self._fact_chunk:
+                # check whether a chunk is present after the data chunk to
+                # prevent appending data
+                self._postdata_chunk = chunk
             chunk.skip()
         if not self._fmt_chunk or not self._data_chunk:
             raise Error, "fmt and/or data chunk missing"
@@ -245,6 +253,14 @@ class wavfile(object):
             self.fp.seek(0,2)
             self._bytes_written = self.fp.tell() - self._data_offset
 
+    def _file_format(self):
+        """ Returns appropriate file format or raises an error """
+        if self._dtype.kind == 'i' or (self._dtype.kind == 'u' and self._dtype.itemsize==1):
+            return WAVE_FORMAT_PCM
+        elif self._dtype.kind == 'f':
+            return WAVE_FORMAT_IEEE_FLOAT
+        else:
+            raise Error, "unsupported type %r cannot be stored in wave files" % self._dtype
 
     def _write_header(self, sampling_rate, dtype, nchannels):
         """ Create header for wave file based on sampling rate and data type """
@@ -258,15 +274,7 @@ class wavfile(object):
         out = struct.pack('<4sl4s','RIFF',0,'WAVE')
 
         # fmt chunk
-        self._dtype = ndtype(dtype)
-        self._nchannels = int(nchannels)
-        self._framerate = int(sampling_rate)
-        if self._dtype.kind == 'i' or (self._dtype.kind == 'u' and self._dtype.itemsize==1):
-            tag = etag = WAVE_FORMAT_PCM
-        elif self._dtype.kind == 'f':
-            tag =etag = WAVE_FORMAT_IEEE_FLOAT
-        else:
-            raise Error, "unsupported type %r cannot be stored in wave files" % self._dtype
+        tag = etag = self._file_format()
         fmt_size = 16
         if self._dtype.itemsize > 2 or self._nchannels > 2:
             fmt_size = 40

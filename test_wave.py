@@ -11,7 +11,11 @@ import wave
 
 test_dir = "test"
 unsupported_dir = "unsupported"
+
+# defaults for test file
 test_file = os.path.join(test_dir,"test.wav")
+nchan = 2
+Fs = 48000
 
 def compare_arrays(a,b,msg):
     from numpy import all
@@ -22,11 +26,11 @@ def compare_arrays(a,b,msg):
 def setup():
     if os.path.exists(test_file): os.remove(test_file)
 
-def read_file(fname):
+def read_file(fname,memmap="r"):
     fp = wave.open(fname,"r")
     assert fp.filename == fname
     assert fp.mode == "r"
-    data = fp.read()
+    data = fp.read(memmap=memmap)
     if fp.nchannels == 1:
         assert data.ndim == 1
         assert data.size == fp.nframes
@@ -54,12 +58,14 @@ def write_file(fname):
     
 def readwrite_file(fname):
     """ test files in r+ mode """
+    from numpy import concatenate
     fp1 = wave.open(fname,"r")
+    d1 = fp1.read()
     with wave.open(test_file,"w", 
                     sampling_rate=fp1.sampling_rate,
                     dtype=fp1.dtype,
                     nchannels=fp1.nchannels) as fp2:
-        fp2.write(fp1.read()).flush()
+        fp2.write(d1).flush()
 
     with wave.open(test_file,"r+") as fp3:
         assert fp3.filename == test_file, fname
@@ -68,36 +74,49 @@ def readwrite_file(fname):
         assert fp3.nchannels == fp1.nchannels, fname
         assert fp3.nframes == fp1.nframes, fname
 
-        d1 = fp1.read()
         d2 = fp3.read(memmap='r+')
         compare_arrays(d1,d2,fname)
+
     os.remove(test_file)        
 
 @raises(wave.Error)
 def read_unsupported(fname):
     read_file(fname)
-        
-def test01_read():
-    for fname in glob.iglob(os.path.join(test_dir, "*.wav")):
-        yield read_file, fname
 
-def test02_unsupported():
+# minor semantic checks
+@raises(ValueError)        
+def test00_mode():
+    wave.open(test_file,'a')
+
+def test00_handle():
+    fp = open(test_file,'w')
+    with wave.open(fp,sampling_rate=Fs,nchannels=nchan) as wfp:
+        assert wfp.sampling_rate == Fs
+        assert wfp.filename == test_file
+    os.remove(test_file)
+
+# behavior checks
+def test01_read():
+    for mmap in (False,'c','r'):
+        for fname in glob.iglob(os.path.join(test_dir, "*.wav")):
+            yield read_file, fname, mmap
+
+def test01_unsupported():
     for fname in glob.iglob(os.path.join(unsupported_dir, "*.wav")):
         yield read_unsupported, fname
 
-def test03_write():
+def test01_write():
     for fname in glob.iglob(os.path.join(test_dir, "*.wav")):
         yield write_file, fname
 
-def test03_readwrite():
+def test01_readwrite():
     for fname in glob.iglob(os.path.join(test_dir, "*.wav")):
         yield readwrite_file, fname
 
-def test04_modify():
+def test02_modify():
     from numpy.random import randn
-    nchan = 2
     data = randn(10000,nchan)
-    with wave.open(test_file,"w+",sampling_rate=48000,dtype='f',nchannels=nchan) as fp:
+    with wave.open(test_file,"w+",sampling_rate=Fs,dtype='f',nchannels=nchan) as fp:
         fp.write(data)
         d2 = fp.read(memmap='r+')
         compare_arrays(data,d2,"written data")
@@ -107,6 +126,16 @@ def test04_modify():
     with wave.open(test_file,"r") as fp:
         d2 = fp.read(memmap='r')
         compare_arrays(data*2,d2,"written data")
-        
+
+def test02_append():
+    from numpy import random, concatenate
+    d1 = random.randn(100,nchan)
+    d2 = random.randn(100,nchan)
+    with wave.open(test_file,"w+",sampling_rate=Fs,dtype='f',nchannels=nchan) as fp:
+        fp.write(d1)
+        compare_arrays(d1,fp.read(),"first data")
+        fp.write(d2)
+        compare_arrays(concatenate(d1,d2),fp.read(),"second data")
+
 # Variables:
 # End:
