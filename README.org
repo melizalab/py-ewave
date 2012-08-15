@@ -40,15 +40,13 @@ place.
 For example, to write a second of stereo white noise in floating point format
 and then rescale it in place:
 
-#+begin_src python
-  import ewave
-  from numpy import random
-  data = random.randn(48000,2)
-  with ewave.open("myfile.wav","w+",sampling_rate=48000,dtype='f',channels=2) as fp:
-      fp.write(data)
-      # rescale the data by 50%
-      fp.read(memmap='r+') *= 0.5
-#+end_src
+: import ewave
+: from numpy import random
+: data = random.randn(48000,2)
+: with ewave.open("myfile.wav","w+",sampling_rate=48000,dtype='f',nchannels=2) as fp:
+:     fp.write(data)
+:     # rescale the data by 50%
+:     fp.read(memmap='r+') *= 0.5
 
 ** Testing
 
