@@ -9,16 +9,19 @@ is based):
 * Support is provided for reading and writing standard and extended format files
   with 8, 16, 32, or 64-bit linear PCM encoding, or with 32 or 64-bit IEEE float
   encoding.
-  
+
 * Data access is through numpy.memmap whenever possible. This speeds reading
-  large files and allows files to be edited in place (open in 'a' mode)
+  large files and allows files to be edited in place (open file in 'r+' mode and
+  call read() with memmap='r+')
 
 * A single class handles both read and write operations.
 
 * Non-accessor methods can be chained, e.g. fp.write(data).flush()
-  
-Note that WAV files cannot store more than 2-4 GiB of data. Only read support is
-provided for extensible format WAVE files.
+
+Note that WAV files cannot store more than 2-4 GiB of data. Mu-law, A-law, and
+other exotic encoding schemes are not supported. Does not support bit packings
+where the container sizes don't correspond to mmapable types (e.g. 24 bit). Try
+libsndfile for those sorts of files.
 
 Copyright (C) 2012 Dan Meliza <dan // AT // meliza.org>
 Created 2012-03-29
@@ -31,25 +34,22 @@ WAVE_FORMAT_PCM = 0x0001
 WAVE_FORMAT_IEEE_FLOAT = 0x0003
 WAVE_FORMAT_EXTENSIBLE = 0xFFFE
 
-def open(f, *args, **kwargs):
-    """ Open a file for reading and/or writing. Any of the standard modes
-    supported by file can be used.
-
-    f:             the path of the file to open, or an open file-like object
-    mode:          the mode to open the file. if already open, uses the file's handle
-    sampling_rate: for 'w' mode only, set the sampling rate of the data
-    dtype:         for 'w' mode only, set the storage format using one of the following codes:
-                   'b','h','i','l':  8,16,32,64-bit PCM
-                   'f','d':  32,64-bit IEEE float
-    nchannels:     for 'w' mode only, set the number of channels to store
-    """
-    return wavfile(f, *args, **kwargs)
-
 class wavfile(object):
     def __init__(self, f, mode='r', sampling_rate=20000, dtype='h', nchannels=1):
+        """ Open a file for reading and/or writing. Any of the standard modes
+        supported by file can be used.
+
+        f:             the path of the file to open, or an open file-like object
+        mode:          the mode to open the file. if already open, uses the file's handle
+        sampling_rate: for 'w' mode only, set the sampling rate of the data
+        dtype:         for 'w' mode only, set the storage format using one of the following codes:
+                       'b','h','i','l':  8,16,32,64-bit PCM
+                       'f','d':  32,64-bit IEEE float
+        nchannels:     for 'w' mode only, set the number of channels to store
+        """
         if isinstance(f, basestring):
-            if mode not in ('r','r+','w'):
-                raise ValueError, "Invalid mode (use 'r', 'r+', 'w')"
+            if mode not in ('r','r+','w','w+'):
+                raise ValueError, "Invalid mode (use 'r', 'r+', 'w', 'w+')"
             self.fp = file(f, mode=mode+'b')
         else:
             self.fp = f
@@ -113,14 +113,14 @@ class wavfile(object):
     def flush(self):
         """ flush data to disk and update header with correct size information """
         import struct
-        if not self.mode in ('w','r+'): return
+        if self.mode == 'r': return
         self.fp.seek(4)
         self.fp.write(struct.pack("<l", self._data_offset + self._bytes_written - 8))
         self.fp.seek(self._data_offset - 4)
         self.fp.write(struct.pack("<l", self._bytes_written))
         self.fp.flush()
         return self
-                              
+
     def read(self, frames=None, offset=0, memmap='c'):
         """
         Return contents of file. Default is is to memmap the data in
@@ -129,7 +129,7 @@ class wavfile(object):
 
         For multichannel WAV files, the data are returned as a 2D
         array with dimensions frames x channels
-        
+
         - frames: number of frames to return. None for all the frames in the file
         - offset: start read at specific frame
         - memmap: if False, reads the whole file into memory at once; if not, returns
@@ -158,12 +158,13 @@ class wavfile(object):
             A = A[:nsamples]
             A.shape = (nsamples // self.nchannels, self.nchannels)
         return A
-            
+
     def write(self, data):
         """ Write data to the WAVE file
 
-        - data : input data, in any form that can be converted to an
-                 array with the file's dtype
+        - data : input data, in any form that can be converted to an array with
+                 the file's dtype. Note that different storage types have
+                 different ranges. See rescale().
         """
         from numpy import asarray
         if self.mode=='r': raise Error, 'file is read-only'
@@ -178,7 +179,7 @@ class wavfile(object):
         from numpy import dtype
         from chunk import Chunk
         import struct
-        
+
         fp = Chunk(self.fp, bigendian=0)
         if fp.getname() != 'RIFF':
             raise Error, 'file does not start with RIFF id'
@@ -279,7 +280,7 @@ class wavfile(object):
         if tag == WAVE_FORMAT_EXTENSIBLE:
             out += struct.pack('<HHlH14s', 22,
                                self._dtype.itemsize * 8, # use the full bitdepth
-                               3,                        # L,R,unspecified
+                               (1 << self._nchannels) - 1,
                                etag,
                                '\x00\x00\x00\x00\x10\x00\x80\x00\x00\xaa\x008\x9b\x71')
 
@@ -292,8 +293,8 @@ class wavfile(object):
         self.fp.write(out)
         self._data_offset = self.fp.tell()
         self._bytes_written = 0
-        
-        
-        
+
+open = wavfile
+
 # Variables:
 # End:

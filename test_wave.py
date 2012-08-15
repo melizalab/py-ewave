@@ -92,7 +92,21 @@ def test03_write():
 def test03_readwrite():
     for fname in glob.iglob(os.path.join(test_dir, "*.wav")):
         yield readwrite_file, fname
-    
 
+def test04_modify():
+    from numpy.random import randn
+    nchan = 2
+    data = randn(10000,nchan)
+    with wave.open(test_file,"w+",sampling_rate=48000,dtype='f',nchannels=nchan) as fp:
+        fp.write(data)
+        d2 = fp.read(memmap='r+')
+        compare_arrays(data,d2,"written data")
+        d2 *= 2
+        compare_arrays(data*2,d2,"modified data")
+
+    with wave.open(test_file,"r") as fp:
+        d2 = fp.read(memmap='r')
+        compare_arrays(data*2,d2,"written data")
+        
 # Variables:
 # End:
