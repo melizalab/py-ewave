@@ -54,7 +54,7 @@ class wavfile(object):
         self._dtype = ndtype(dtype)
         self._nchannels = int(nchannels)
         self._framerate = int(sampling_rate)
-        self._file_format()
+        self._file_format(self._dtype)
 
         if isinstance(f, basestring):
             if mode not in ('r','r+','w','w+'):
@@ -162,19 +162,26 @@ class wavfile(object):
             A.shape = (nsamples // self.nchannels, self.nchannels)
         return A
 
-    def write(self, data):
+    def write(self, data, scale=True):
         """ Write data to the WAVE file
 
         - data : input data, in any form that can be converted to an array with
                  the file's dtype. Data are silently coerced into an array whose
-                 shape matches the number of channels in the file. Note that
-                 different storage types have different ranges. See rescale().
+                 shape matches the number of channels in the file.
+
+        - scale : if True, data are rescaled so that their maximum range matches
+                    that of the file's encoding. If not, the raw values are
+                    used, which can result in clipping.
         """
         from numpy import asarray
         if self.mode=='r': raise Error, 'file is read-only'
-        if self._postdata_chunk: raise Error, 'cannot append to data chunk without overwriting other chunks'
+        if hasattr(self,'_postdata_chunk') and self._postdata_chunk:
+            raise Error, 'cannot append to data chunk without overwriting other chunks'
 
-        data = asarray(data, self._dtype).tostring()
+        if not scale:
+            data = asarray(data, self._dtype)
+        data = rescale(data, self._dtype).tostring()
+
         self.fp.write(data)
         self._bytes_written += len(data)
         return self
@@ -254,28 +261,26 @@ class wavfile(object):
             self.fp.seek(0,2)
             self._bytes_written = self.fp.tell() - self._data_offset
 
-    def _file_format(self):
+    @classmethod
+    def _file_format(cls, dtype):
         """ Returns appropriate file format or raises an error """
-        if self._dtype.kind == 'i' or (self._dtype.kind == 'u' and self._dtype.itemsize==1):
+        if dtype.kind == 'i' or (dtype.kind == 'u' and dtype.itemsize==1):
             return WAVE_FORMAT_PCM
-        elif self._dtype.kind == 'f':
+        elif dtype.kind == 'f':
             return WAVE_FORMAT_IEEE_FLOAT
         else:
-            raise Error, "unsupported type %r cannot be stored in wave files" % self._dtype
+            raise Error, "unsupported type %r cannot be stored in wave files" % dtype
 
     def _write_header(self, sampling_rate, dtype, nchannels):
         """ Create header for wave file based on sampling rate and data type """
         # this is a bit tricky b/c Chunk is a read-only class
         # however, this only gets called for a pristine file
         # we'll have to go back and patch up the sizes later
-        from numpy import dtype as ndtype
         import struct
-
         # main chunk
         out = struct.pack('<4sl4s','RIFF',0,'WAVE')
-
         # fmt chunk
-        tag = etag = self._file_format()
+        tag = etag = self._file_format(self._dtype)
         fmt_size = 16
         if self._dtype.itemsize > 2 or self._nchannels > 2:
             fmt_size = 40
@@ -286,6 +291,7 @@ class wavfile(object):
                            self._nchannels * self._framerate * self._dtype.itemsize,
                            self._nchannels * self._dtype.itemsize,
                            self._dtype.itemsize * 8)
+
         if tag == WAVE_FORMAT_EXTENSIBLE:
             out += struct.pack('<HHlH14s', 22,
                                self._dtype.itemsize * 8, # use the full bitdepth
@@ -304,6 +310,36 @@ class wavfile(object):
         self._bytes_written = 0
 
 open = wavfile
+
+def rescale(data, tgt_dtype):
+    """ Rescale data to the correct range for dtype.
+
+    - data: a numpy array or anything convertable into one.
+    - dtype: the data type of the target container
+    """
+    from numpy import asarray, dtype
+    # convert to numpy array, retaining best type
+    data = asarray(data)
+    src_type = data.dtype
+    tgt_type = dtype(tgt_dtype)
+    if src_type == tgt_type:
+        return data
+
+    # calculate mean and range for a type
+    def f(dt):
+        if dt.kind == 'f': return 0,1.0
+        umax = (1 << dt.itemsize * 8 - 1) - 1
+        if dt.kind == 'i': return 0,umax
+        if dt.kind == 'u': return umax,umax
+        else: raise Error, "unsupported target type %r" % dt
+    sm,sr = f(src_type)
+    tm,tr = f(tgt_type)
+
+    # order of operations to avoid truncation
+    if src_type > tgt_type or src_type.kind=='f':
+        return ((data - sm) * (tr/sr) + tm).astype(tgt_type)
+    else:
+        return (data.astype(tgt_type) - sm) * (tr/sr) + tm
 
 # Variables:
 # End:

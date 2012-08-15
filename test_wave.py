@@ -42,16 +42,16 @@ def compare_fmt(fname):
     """ test against sndfile-info output """
     pass
 
-def write_file(fname):
+def write_file(fname,tgt_type=None):
     fp1 = ewave.open(fname,"r")
     with ewave.open(test_file,"w",
                     sampling_rate=fp1.sampling_rate,
-                    dtype=fp1.dtype,
+                    dtype=tgt_type or fp1.dtype,
                     nchannels=fp1.nchannels) as fp2:
         assert fp2.filename == test_file, fname
         assert fp2.sampling_rate == fp1.sampling_rate, fname
-        assert fp2.dtype == fp1.dtype, fname
         assert fp2.nchannels == fp1.nchannels, fname
+        if not tgt_type: assert fp2.dtype == fp1.dtype, fname
         fp2.write(fp1.read())
         assert fp2.nframes == fp1.nframes, fname
     os.remove(test_file)
@@ -64,7 +64,7 @@ def readwrite_file(fname):
                     sampling_rate=fp1.sampling_rate,
                     dtype=fp1.dtype,
                     nchannels=fp1.nchannels) as fp2:
-        fp2.write(d1).flush()
+        fp2.write(d1, scale=False).flush()
 
     with ewave.open(test_file,"r+") as fp3:
         assert fp3.filename == test_file, fname
@@ -82,6 +82,13 @@ def readwrite_file(fname):
 def read_unsupported(fname):
     read_file(fname)
 
+def rescale(src_type, tgt_type):
+    from numpy import ones,dtype
+    d1 = ones(1000,dtype=src_type)
+    if dtype(src_type).kind=='f': d1 *= 0.9
+    d2 = ewave.rescale(d1, tgt_type)
+    assert d2.dtype == dtype(tgt_type)
+
 # minor semantic checks
 @raises(ValueError)
 def test00_mode():
@@ -94,7 +101,27 @@ def test00_handle():
         assert wfp.filename == test_file
     os.remove(test_file)
 
+def test00_invalidtype():
+    if os.path.exists(test_file): os.remove(test_file)
+    try:
+        ewave.open(test_file,'w',dtype='S2')
+    except ewave.Error:
+        # verify that file was not created
+        assert not os.path.exists(test_file), "file was created for invalid type"
+        return
+    raise Exception, "Exception was not raised for invalid type"
+
+@raises(ewave.Error)
+def test00_rescalebad():
+    ewave.rescale([1,2,3],'S2')
+
 # behavior checks
+def test01_rescale():
+    dtypes = ('u1','h','i','l','f','d')
+    for src in dtypes:
+        for tgt in dtypes:
+            yield rescale, src, tgt
+
 def test01_read():
     for mmap in (False,'c','r'):
         for fname in glob.iglob(os.path.join(test_dir, "*.wav")):
@@ -107,6 +134,11 @@ def test01_unsupported():
 def test01_write():
     for fname in glob.iglob(os.path.join(test_dir, "*.wav")):
         yield write_file, fname
+
+def test01_convert():
+    for tgt_type in ('f','h'):
+        for fname in glob.iglob(os.path.join(test_dir, "*.wav")):
+            yield write_file, fname, tgt_type
 
 def test01_readwrite():
     for fname in glob.iglob(os.path.join(test_dir, "*.wav")):
