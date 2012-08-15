@@ -14,6 +14,8 @@ is based):
   large files and allows files to be edited in place (open in 'a' mode)
 
 * A single class handles both read and write operations.
+
+* Non-accessor methods can be chained, e.g. fp.write(data).flush()
   
 Note that WAV files cannot store more than 2-4 GiB of data. Only read support is
 provided for extensible format WAVE files.
@@ -61,14 +63,14 @@ class wavfile(object):
         return self
 
     def __exit__(self, exc_type, exc_val, exc_tb):
-        self.close()
+        self.__del__()
         return exc_val
 
     def __del__(self):
         if hasattr(self,'fp') and hasattr(self.fp,'close'):
             self.flush()
             self.fp.close()
-
+            del self.fp
 
     @property
     def filename(self):
@@ -97,10 +99,10 @@ class wavfile(object):
 
     @property
     def nframes(self):
-        if hasattr(self, "_data_chunk"):
-            nbytes = self._data_chunk.getsize()
-        else:
+        if hasattr(self, "_bytes_written"):
             nbytes = self._bytes_written
+        else:
+            nbytes = self._data_chunk.getsize()
         return nbytes // (self.dtype.itemsize * self.nchannels)
 
     @property
@@ -117,6 +119,7 @@ class wavfile(object):
         self.fp.seek(self._data_offset - 4)
         self.fp.write(struct.pack("<l", self._bytes_written))
         self.fp.flush()
+        return self
                               
     def read(self, frames=None, offset=0, memmap='c'):
         """
@@ -137,6 +140,7 @@ class wavfile(object):
         from numpy import memmap as mmap
         from numpy import fromfile
         if self.mode == 'w': raise Error, 'file is write-only'
+        if self.mode == 'r+': self.fp.flush()
         # find offset
         coff = self._data_offset + offset * self.nchannels * self._dtype.itemsize
         if frames is None: frames = self.nframes - offset
@@ -167,6 +171,7 @@ class wavfile(object):
         data = asarray(data, self._dtype).tostring()
         self.fp.write(data)
         self._bytes_written += len(data)
+        return self
 
     def _load_header(self):
         """ Read metadata from header """
@@ -263,7 +268,7 @@ class wavfile(object):
             raise Error, "unsupported type %r cannot be stored in wave files" % self._dtype
         fmt_size = 16
         if self._dtype.itemsize > 2 or self._nchannels > 2:
-            fmt_size = 22
+            fmt_size = 40
             tag = WAVE_FORMAT_EXTENSIBLE
 
         out += struct.pack('<4slHHllHH',
