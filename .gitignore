@@ -1,0 +1,4 @@
+*.wav
+/.coverage
+*.pyc
+build/

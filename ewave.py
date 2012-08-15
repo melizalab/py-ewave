@@ -23,7 +23,7 @@ is based):
 Note that WAV files cannot store more than 2-4 GiB of data. Mu-law, A-law, and
 other exotic encoding schemes are not supported. Does not support bit packings
 where the container sizes don't correspond to mmapable types (e.g. 24 bit). Try
-libsndfile for those sorts of files.  
+libsndfile for those sorts of files.
 
 Copyright (C) 2012 Dan Meliza <dan // AT // meliza.org>
 Created 2012-03-29
@@ -55,7 +55,7 @@ class wavfile(object):
         self._nchannels = int(nchannels)
         self._framerate = int(sampling_rate)
         self._file_format()
-            
+
         if isinstance(f, basestring):
             if mode not in ('r','r+','w','w+'):
                 raise ValueError, "Invalid mode (use 'r', 'r+', 'w', 'w+')"
@@ -172,6 +172,7 @@ class wavfile(object):
         """
         from numpy import asarray
         if self.mode=='r': raise Error, 'file is read-only'
+        if self._postdata_chunk: raise Error, 'cannot append to data chunk without overwriting other chunks'
 
         data = asarray(data, self._dtype).tostring()
         self.fp.write(data)
