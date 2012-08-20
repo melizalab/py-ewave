@@ -271,7 +271,7 @@ class wavfile(object):
         else:
             raise Error, "unsupported type %r cannot be stored in wave files" % dtype
 
-    def _write_header(self, sampling_rate, dtype, nchannels):
+    def _write_header(self, sampling_rate, dtype, nchannels, write_fact=None):
         """ Create header for wave file based on sampling rate and data type """
         # this is a bit tricky b/c Chunk is a read-only class
         # however, this only gets called for a pristine file
@@ -300,7 +300,8 @@ class wavfile(object):
                                '\x00\x00\x00\x00\x10\x00\x80\x00\x00\xaa\x008\x9b\x71')
 
         # fact chunk
-        out += struct.pack("<4sll","fact",4,self._dtype.itemsize)
+        if write_fact or (write_fact is None and tag in (WAVE_FORMAT_IEEE_FLOAT, WAVE_FORMAT_EXTENSIBLE)):
+            out += struct.pack("<4sll","fact",4,self._dtype.itemsize)
         # beginning of data chunk
         out += struct.pack("<4sl","data",0)
 
