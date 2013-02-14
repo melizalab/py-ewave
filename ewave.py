@@ -36,6 +36,8 @@ WAVE_FORMAT_PCM = 0x0001
 WAVE_FORMAT_IEEE_FLOAT = 0x0003
 WAVE_FORMAT_EXTENSIBLE = 0xFFFE
 
+__version__ = "1.0.1"
+
 class wavfile(object):
     def __init__(self, f, mode='r', sampling_rate=20000, dtype='h', nchannels=1):
         """ Open a file for reading and/or writing. Any of the standard modes
@@ -112,6 +114,15 @@ class wavfile(object):
     def dtype(self):
         """ Data storage type """
         return self._dtype
+
+    def __repr__(self):
+        return "<open %s.%s '%s', mode '%s', dtype '%s', sampling rate %d at %s>" % (self.__class__.__module__,
+                                                                                     self.__class__.__name__,
+                                                                                     self.filename,
+                                                                                     self.mode,
+                                                                                     self.dtype,
+                                                                                     self.sampling_rate,
+                                                                                     hex(id(self)))
 
     def flush(self):
         """ flush data to disk and update header with correct size information """
