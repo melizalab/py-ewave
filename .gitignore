@@ -2,3 +2,5 @@
 /.coverage
 *.pyc
 build/
+dist/
+/MANIFEST
