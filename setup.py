@@ -5,7 +5,7 @@ from distutils.core import setup
 
 setup(
     name = 'ewave',
-    version = '1.0.1',
+    version = '1.0.2',
     py_modules = ['ewave'],
     requires = ['numpy (>=1.0)'],
 

@@ -36,7 +36,7 @@ WAVE_FORMAT_PCM = 0x0001
 WAVE_FORMAT_IEEE_FLOAT = 0x0003
 WAVE_FORMAT_EXTENSIBLE = 0xFFFE
 
-__version__ = "1.0.1"
+__version__ = "1.0.2"
 
 class wavfile(object):
     def __init__(self, f, mode='r', sampling_rate=20000, dtype='h', nchannels=1):
