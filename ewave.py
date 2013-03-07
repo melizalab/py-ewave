@@ -36,10 +36,10 @@ WAVE_FORMAT_PCM = 0x0001
 WAVE_FORMAT_IEEE_FLOAT = 0x0003
 WAVE_FORMAT_EXTENSIBLE = 0xFFFE
 
-__version__ = "1.0.2"
+__version__ = "1.0.3"
 
 class wavfile(object):
-    def __init__(self, f, mode='r', sampling_rate=20000, dtype='h', nchannels=1):
+    def __init__(self, f, mode='r', sampling_rate=20000, dtype='h', nchannels=1, **kwargs):
         """ Open a file for reading and/or writing. Any of the standard modes
         supported by file can be used.
 
@@ -50,6 +50,8 @@ class wavfile(object):
                        'b','h','i','l':  8,16,32,64-bit PCM
                        'f','d':  32,64-bit IEEE float
         nchannels:     for 'w' mode only, set the number of channels to store
+
+        additional keyword arguments are ignored
         """
         from numpy import dtype as ndtype
         # validate arguments; props are overwritten if header is read
