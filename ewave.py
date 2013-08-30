@@ -255,13 +255,13 @@ class wavfile(object):
             elif bits <= 16:
                 self._dtype = dtype('<h')
             elif bits <= 24:
-                raise Error, "invalid bits per sample: %d" % bits
+                raise Error, "unsupported bit depth: %d" % bits
             elif bits <= 32:
                 self._dtype = dtype('<i')
             elif bits == 64:
                 self._dtype = dtype('<l')
             else:
-                raise Error, "invalid bits per sample: %d" % bits
+                raise Error, "unsupported bit depth: %d" % bits
         elif wFormatTag == WAVE_FORMAT_IEEE_FLOAT:
             try:
                 self._dtype = dtype('float%d' % bits)
