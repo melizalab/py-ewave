@@ -40,11 +40,11 @@ __version__ = "1.0.3"
 
 class wavfile(object):
     def __init__(self, f, mode='r', sampling_rate=20000, dtype='h', nchannels=1, **kwargs):
-        """ Open a file for reading and/or writing. Any of the standard modes
-        supported by file can be used.
+        """Open a file for reading and/or writing.
 
         f:             the path of the file to open, or an open file-like object
-        mode:          the mode to open the file. if already open, uses the file's handle
+        mode:          the mode to open the file (r, r+, w, w+). If already open,
+                       uses the file's handle.
         sampling_rate: for 'w' mode only, set the sampling rate of the data
         dtype:         for 'w' mode only, set the storage format using one of the following codes:
                        'b','h','i','l':  8,16,32,64-bit PCM
@@ -52,6 +52,10 @@ class wavfile(object):
         nchannels:     for 'w' mode only, set the number of channels to store
 
         additional keyword arguments are ignored
+
+        The returned object may be used as a context manager, and will close the
+        underlying file when the context exits.
+
         """
         from numpy import dtype as ndtype
         # validate arguments; props are overwritten if header is read
