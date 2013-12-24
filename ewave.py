@@ -29,24 +29,25 @@ Copyright (C) 2012 Dan Meliza <dan // AT // meliza.org>
 Created 2012-03-29
 
 """
+from __future__ import division
+from __future__ import unicode_literals
+WAVE_FORMAT_PCM = 0x0001
+WAVE_FORMAT_IEEE_FLOAT = 0x0003
+WAVE_FORMAT_EXTENSIBLE = 0xFFFE
+
+__version__ = "1.1.0-SNAPSHOT"
 
 
 class Error(Exception):
     pass
 
-WAVE_FORMAT_PCM = 0x0001
-WAVE_FORMAT_IEEE_FLOAT = 0x0003
-WAVE_FORMAT_EXTENSIBLE = 0xFFFE
-
-__version__ = "1.0.4-SNAPSHOT"
-
 
 class wavfile(object):
 
-    def __init__(self, f, mode='r', sampling_rate=20000, dtype='h', nchannels=1, **kwargs):
+    def __init__(self, file, mode='r', sampling_rate=20000, dtype='h', nchannels=1, **kwargs):
         """Opens a file for reading and/or writing.
 
-        f:             the path of the file to open, or an open file-like object
+        file:          the path of the file to open, or an open file-like object
         mode:          the mode to open the file (r, r+, w, w+). If already open,
                        uses the file's handle.
         sampling_rate: for 'w' mode only, set the sampling rate of the data
@@ -61,6 +62,11 @@ class wavfile(object):
         underlying file when the context exits.
 
         """
+        import sys
+        if sys.version > '3':
+            from builtins import open
+        else:
+            from __builtin__ import open
         from numpy import dtype as ndtype
         # validate arguments; props are overwritten if header is read
         self._dtype = ndtype(dtype)
@@ -68,15 +74,27 @@ class wavfile(object):
         self._framerate = int(sampling_rate)
         self._file_format(self._dtype)
 
-        if isinstance(f, basestring):
+        if hasattr(file, 'read'):
+            self.fp = file
+        else:
+            try:
+                file = file.encode(sys.getfilesystemencoding())
+            except (UnicodeError, LookupError):
+                pass
             if mode not in ('r', 'r+', 'w', 'w+'):
                 raise ValueError("Invalid mode (use 'r', 'r+', 'w', 'w+')")
-            self.fp = file(f, mode=mode + 'b')
-        else:
-            self.fp = f
+            self.fp = open(file, mode=mode + 'b')
 
-        if self.mode in ('r', 'r+'):
+        # python 2/3 compatibility is tricky here because files opened in 'w+'
+        # will have mode 'r+' under py3
+        if self.mode == 'r':
             self._load_header()
+        elif self.mode == 'r+':
+            try:
+                self._load_header()
+            except EOFError:
+                # file is empty; needs header
+                self._write_header(sampling_rate, dtype, nchannels)
         else:
             self._write_header(sampling_rate, dtype, nchannels)
 
@@ -101,8 +119,7 @@ class wavfile(object):
     @property
     def mode(self):
         """The mode for the file """
-        m = self.fp.mode
-        return m[:m.find('b')]
+        return self.fp.mode.replace('b', '')
 
     @property
     def sampling_rate(self):
@@ -142,9 +159,9 @@ class wavfile(object):
             return
         self.fp.seek(4)
         self.fp.write(
-            struct.pack("<l", self._data_offset + self._bytes_written - 8))
+            struct.pack(b"<l", self._data_offset + self._bytes_written - 8))
         self.fp.seek(self._data_offset - 4)
-        self.fp.write(struct.pack("<l", self._bytes_written))
+        self.fp.write(struct.pack(b"<l", self._bytes_written))
         self.fp.flush()
         return self
 
@@ -171,7 +188,7 @@ class wavfile(object):
         from numpy import fromfile
         if self.mode == 'w':
             raise Error('file is write-only')
-        if self.mode == 'r+':
+        if self.mode in ('r+', 'w+'):
             self.fp.flush()
         # find offset
         coff = self._data_offset + offset * self.nchannels * self._dtype.itemsize
@@ -225,9 +242,9 @@ class wavfile(object):
         import struct
 
         fp = Chunk(self.fp, bigendian=0)
-        if fp.getname() != 'RIFF':
+        if fp.getname() != b'RIFF':
             raise Error('file does not start with RIFF id')
-        if fp.read(4) != 'WAVE':
+        if fp.read(4) != b'WAVE':
             raise Error('not a WAVE file')
         self._fmt_chunk = None
         self._fact_chunk = None
@@ -239,11 +256,11 @@ class wavfile(object):
             except EOFError:
                 break
             chunkname = chunk.getname()
-            if chunkname == 'fmt ':
+            if chunkname == b'fmt ':
                 self._fmt_chunk = chunk
-            elif chunkname == 'fact':
+            elif chunkname == b'fact':
                 self._fact_chunk = chunk
-            elif chunkname == 'data':
+            elif chunkname == b'data':
                 if not self._fmt_chunk:
                     raise Error('data chunk before fmt chunk')
                 self._data_chunk = chunk
@@ -258,13 +275,13 @@ class wavfile(object):
         self._dtype = None
         self._fmt_chunk.seek(0)
         wFormatTag, self._nchannels, self._framerate, nAvgBytesPerSec, wBlockAlign, bits = \
-            struct.unpack('<HHLLHH', self._fmt_chunk.read(16))
+            struct.unpack(b'<HHLLHH', self._fmt_chunk.read(16))
         # load extended block if it's there
         if wFormatTag == WAVE_FORMAT_EXTENSIBLE:
             if self._fmt_chunk.getsize() < 16:
                 raise Error('extensible format but no format extension')
             cbSize, wValidBits, dwChannelMask, wFormatTag = \
-                struct.unpack('<hhlH', self._fmt_chunk.read(10))
+                struct.unpack(b'<hhlH', self._fmt_chunk.read(10))
         if wFormatTag == WAVE_FORMAT_PCM:
             # bit size is rounded up to the nearest multiple of 8; I'm
             # not going to support any format that can't be easily
@@ -310,7 +327,7 @@ class wavfile(object):
         # we'll have to go back and patch up the sizes later
         import struct
         # main chunk
-        out = struct.pack('<4sl4s', 'RIFF', 0, 'WAVE')
+        out = struct.pack(b'<4sl4s', b'RIFF', 0, b'WAVE')
         # fmt chunk
         tag = etag = self._file_format(self._dtype)
         fmt_size = 16
@@ -318,27 +335,27 @@ class wavfile(object):
             fmt_size = 40
             tag = WAVE_FORMAT_EXTENSIBLE
 
-        out += struct.pack('<4slHHllHH',
-                           'fmt ', fmt_size, tag, self._nchannels, self._framerate,
+        out += struct.pack(b'<4slHHllHH',
+                           b'fmt ', fmt_size, tag, self._nchannels, self._framerate,
                            self._nchannels * self._framerate *
                            self._dtype.itemsize,
                            self._nchannels * self._dtype.itemsize,
                            self._dtype.itemsize * 8)
 
         if tag == WAVE_FORMAT_EXTENSIBLE:
-            out += struct.pack('<HHlH14s', 22,
+            out += struct.pack(b'<HHlH14s', 22,
                                self._dtype.itemsize * 8,
                                # use the full bitdepth
                                (1 << self._nchannels) - 1,
                                etag,
-                               '\x00\x00\x00\x00\x10\x00\x80\x00\x00\xaa\x008\x9b\x71')
+                               b'\x00\x00\x00\x00\x10\x00\x80\x00\x00\xaa\x008\x9b\x71')
 
         # fact chunk
         if write_fact or (write_fact is None and tag in (WAVE_FORMAT_IEEE_FLOAT,
                                                          WAVE_FORMAT_EXTENSIBLE)):
-            out += struct.pack("<4sll", "fact", 4, self._dtype.itemsize)
+            out += struct.pack(b"<4sll", b"fact", 4, self._dtype.itemsize)
         # beginning of data chunk
-        out += struct.pack("<4sl", "data", 0)
+        out += struct.pack(b"<4sl", b"data", 0)
 
         self.fp.seek(0)
         self.fp.write(out)
@@ -378,9 +395,9 @@ def rescale(data, tgt_dtype):
 
     # order of operations to avoid truncation
     if src_type > tgt_type or src_type.kind == 'f':
-        return ((data - sm) * (tr / sr) + tm).astype(tgt_type)
+        return ((data - sm) * (tr // sr) + tm).astype(tgt_type)
     else:
-        return (data.astype(tgt_type) - sm) * (tr / sr) + tm
+        return (data.astype(tgt_type) - sm) * (tr // sr) + tm
 
 # Variables:
 # End:

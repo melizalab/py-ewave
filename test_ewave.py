@@ -3,6 +3,7 @@
 # Copyright (C) 2012 Dan Meliza <dan@meliza.org>
 # Created Tue Aug 14 15:03:19 2012
 
+from __future__ import unicode_literals
 import os
 import glob
 from nose.tools import *
@@ -26,9 +27,11 @@ def compare_arrays(a,b,msg):
 def setup():
     if os.path.exists(test_file): os.remove(test_file)
 
-def read_file(fname,memmap="r"):
+def teardown():
+    if os.path.exists(test_file): os.remove(test_file)
+
+def read_file(fname, memmap="r"):
     fp = ewave.open(fname,"r")
-    assert fp.filename == fname
     assert fp.mode == "r"
     data = fp.read(memmap=memmap)
     if fp.nchannels == 1:
@@ -95,7 +98,7 @@ def test00_mode():
     ewave.open(test_file,'a')
 
 def test00_handle():
-    fp = open(test_file,'w')
+    fp = open(test_file,'wb')
     with ewave.open(fp,sampling_rate=Fs,nchannels=nchan) as wfp:
         assert wfp.sampling_rate == Fs
         assert wfp.filename == test_file
@@ -109,7 +112,7 @@ def test00_invalidtype():
         # verify that file was not created
         assert not os.path.exists(test_file), "file was created for invalid type"
         return
-    raise Exception, "Exception was not raised for invalid type"
+    raise Exception("Exception was not raised for invalid type")
 
 @raises(ewave.Error)
 def test00_rescalebad():
