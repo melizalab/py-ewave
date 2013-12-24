@@ -3,4 +3,6 @@
 *.pyc
 build/
 dist/
+ewave.egg-info/
 /MANIFEST
+

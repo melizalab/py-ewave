@@ -1,7 +1,18 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 # -*- mode: python -*-
-from distutils.core import setup
+import sys
+if sys.hexversion < 0x02060000:
+    raise RuntimeError("Python 2.6 or higher required")
+
+# setuptools 0.7+ doesn't play nice with distribute, so try to use existing
+# package if possible
+try:
+    from setuptools import setup
+except ImportError:
+    from ez_setup import use_setuptools
+    use_setuptools()
+    from setuptools import setup
 
 long_desc = """Pure python module providing support for reading and
 writing extended WAVE audio file formats, including IEEE floats and >2 channels.
@@ -11,7 +22,6 @@ setup(
     name='ewave',
     version='1.1.0-SNAPSHOT',
     py_modules=['ewave'],
-    requires=['numpy (>=1.0)'],
 
     description="Extended WAVE I/O",
     long_description="",
@@ -34,7 +44,9 @@ setup(
     maintainer='C Daniel Meliza',
     maintainer_email='"dan" at the domain "meliza.org"',
     url="https://github.com/melizalab/py-ewave",
-    download_url="https://github.com/melizalab/py-ewave/downloads"
+    download_url="https://github.com/melizalab/py-ewave/downloads",
+
+    test_suite='nose.collector'
 )
 
 
