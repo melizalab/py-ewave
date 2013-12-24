@@ -20,7 +20,7 @@ writing extended WAVE audio file formats, including IEEE floats and >2 channels.
 
 setup(
     name='ewave',
-    version='1.1.0-SNAPSHOT',
+    version='1.0.4',
     py_modules=['ewave'],
 
     description="Extended WAVE I/O",

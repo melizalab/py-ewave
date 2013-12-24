@@ -22,11 +22,11 @@ solution written in pure Python that provides a number of enhanced features:
 
 ** Requirements and installation
 
-Ewave requires Python >= 2.5 and numpy > 1.0.  It has not been tested on
-Python 3.
+Ewave requires Python 2.6+ or 3.2+ and numpy 1.0+.
 
 To install, run =python setup.py install= in the source directory, or
-=easy_install ewave=
+=pip install ewave=. Because numpy is a large installation, it's not installed
+automatically; run =pip install numpy= if you don't already have it.
 
 ** Usage
 

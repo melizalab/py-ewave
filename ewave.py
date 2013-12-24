@@ -35,7 +35,7 @@ WAVE_FORMAT_PCM = 0x0001
 WAVE_FORMAT_IEEE_FLOAT = 0x0003
 WAVE_FORMAT_EXTENSIBLE = 0xFFFE
 
-__version__ = "1.1.0-SNAPSHOT"
+__version__ = "1.0.4"
 
 
 class Error(Exception):
