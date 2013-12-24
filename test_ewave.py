@@ -14,7 +14,7 @@ test_dir = "test"
 unsupported_dir = "unsupported"
 
 # defaults for test file
-test_file = os.path.join(test_dir,"test.wav")
+test_file = None
 nchan = 2
 Fs = 48000
 
@@ -25,10 +25,14 @@ def compare_arrays(a,b,msg):
     assert all(a==b), "%s: arrays unequal" % msg
 
 def setup():
-    if os.path.exists(test_file): os.remove(test_file)
+    import tempfile
+    global temp_dir, test_file
+    temp_dir = tempfile.mkdtemp()
+    test_file = os.path.join(temp_dir, "test.wav")
 
 def teardown():
-    if os.path.exists(test_file): os.remove(test_file)
+    import shutil
+    shutil.rmtree(temp_dir)
 
 def read_file(fname, memmap="r"):
     fp = ewave.open(fname,"r")
