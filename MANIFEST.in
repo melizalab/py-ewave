@@ -1,2 +1,2 @@
-include README.org
+include README.md
 include test_ewave.py
