@@ -1,24 +1,17 @@
 ## ewave
 
-[![Build Status](https://travis-ci.org/melizalab/py-ewave.png?branch=master)](https://travis-ci.org/melizalab/py-ewave)
-Pure python support for reading and writing extended WAVE formats
+Pure python support for reading and writing extended WAVE formats.
 
 The wave module in Python's standard library is old and doesn't support a number
 of useful formats and encodings, notably IEEE floats. Ewave is a small, simple
 solution written in pure Python that provides a number of enhanced features:
 
 -   Floating point formats
-
 -   Extensible formats (> 2 channels, larger bit depths)
-
 -   Read and write using memory mapping for simple, speedy access to large files
-
 -   Read directly to numpy arrays
-
 -   Data appended to existing files in read/write modes can be immediately accessed
-
 -   Rescaling of data for different encodings and bit depths
-
 -   Supports Python context managers for cleaner resource semantics
 
 # Requirements and installation
@@ -72,7 +65,6 @@ mind external library dependencies should consider one of these wrappers to
 libsndfile:
 
 -   <http://code.google.com/p/libsndfile-python/>
-
 -   <http://www.ar.media.kyoto-u.ac.jp/members/david/softwares/audiolab/>
 
 # Licence and acknowledgements
@@ -84,3 +76,5 @@ library and is released under the same Python Software Foundation Licence
 Information about the WAVE formats supported by this module was extensively
 gleaned from
 <http://www-mmsp.ece.mcgill.ca/documents/audioformats/wave/wave.html>.
+
+[![Build Status](https://travis-ci.org/melizalab/py-ewave.png?branch=master)](https://travis-ci.org/melizalab/py-ewave)
