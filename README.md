@@ -14,7 +14,7 @@ solution written in pure Python that provides a number of enhanced features:
 -   Rescaling of data for different encodings and bit depths
 -   Supports Python context managers for cleaner resource semantics
 
-# Requirements and installation
+### Requirements and installation
 
 Ewave requires Python 2.6+ or 3.2+ and numpy 1.0+.
 
@@ -22,7 +22,7 @@ To install, run `python setup.py install` in the source directory, or
 `pip install ewave`. Because numpy is a large installation, it's not installed
 automatically; run `pip install numpy` if you don't already have it.
 
-# Usage
+### Usage
 
 There are some notable differences between the ewave interface and the standard
 library wave module. There's only a single class that manages both reading and
@@ -44,7 +44,7 @@ with ewave.open("myfile.wav","w+",sampling_rate=48000,dtype='f',nchannels=2) as 
     fp.read(memmap='r+') *= 0.5
 ```
 
-# Testing
+### Testing
 
 Ewave has been tested on a large number of different WAVE formats and comes with
 a fairly extensive unit test suite.  To run unit tests on files, place them in
@@ -52,7 +52,7 @@ the 'test' subdirectory and run `nosetests`.  You can also place unsupported or
 invalid files in the 'unsupported' directory to test whether ewave rejects them
 correctly.  Bug reports are always appreciated.
 
-# Limitations and related projects
+### Limitations and related projects
 
 'Exotic' encodings like A-law and mu-law are not supported.  Formats in which
 the container size (the bit depth) does not align with a native data type,
@@ -67,7 +67,7 @@ libsndfile:
 -   <http://code.google.com/p/libsndfile-python/>
 -   <http://www.ar.media.kyoto-u.ac.jp/members/david/softwares/audiolab/>
 
-# Licence and acknowledgements
+### Licence and acknowledgements
 
 Ewave is based heavily on the original wave module in the Python standard
 library and is released under the same Python Software Foundation Licence
