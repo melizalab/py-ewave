@@ -371,33 +371,42 @@ def rescale(data, tgt_dtype):
     - data: a numpy array or anything convertable into one.
     - tgt_dtype: the data type of the target container
     """
-    from numpy import asarray, dtype
+    from numpy import asarray, dtype, minimum, maximum
     # convert to numpy array, retaining best type
     data = asarray(data)
-    src_type = data.dtype
-    tgt_type = dtype(tgt_dtype)
-    if src_type == tgt_type:
+    src = data.dtype
+    tgt = dtype(tgt_dtype)
+    if src == tgt:
         return data
 
-    # calculate mean and range for a type
-    def f(dt):
-        if dt.kind == 'f':
-            return 0, 1.0
-        umax = (1 << dt.itemsize * 8 - 1) - 1
-        if dt.kind == 'i':
-            return 0, umax
-        if dt.kind == 'u':
-            return umax, umax
-        else:
-            raise Error("unsupported target type %r" % dt)
-    sm, sr = f(src_type)
-    tm, tr = f(tgt_type)
+    if tgt.kind == 'f':
+        if src.kind == 'f':
+            return data.astype(tgt)
+        umax = 1 << (src.itemsize * 8 - 1)
+        out = (data / umax).astype(tgt)
+        if src.kind == 'u':
+            out -= 1.0
+        return out
 
-    # order of operations to avoid truncation
-    if src_type > tgt_type or src_type.kind == 'f':
-        return ((data - sm) * (tr // sr) + tm).astype(tgt_type)
+    elif src.kind == 'f' and tgt.kind in ('i', 'u'):
+        umax = 1 << (tgt.itemsize * 8 - 1)
+        out = data * umax
+        # assume positive clipping - may break on other architectures
+        out = minimum(maximum(out, -umax), umax - 1).astype(tgt)
+
+    elif tgt.kind in ('i', 'u'):
+        if tgt > src:
+            out = (data.astype(tgt) << (tgt.itemsize - src.itemsize) * 8)
+        else:
+            out = (data >> (src.itemsize - tgt.itemsize) * 8).astype(tgt)
     else:
-        return (data.astype(tgt_type) - sm) * (tr // sr) + tm
+        raise Error("unsupported target type %r" % tgt)
+
+    if src.kind != tgt.kind and src.kind == 'u' or tgt.kind == 'u':
+        out += asarray(1, dtype=tgt) << tgt.itemsize * 8 - 1
+
+    return out
+
 
 # Variables:
 # End:

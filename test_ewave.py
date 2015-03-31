@@ -3,6 +3,7 @@
 # Copyright (C) 2012 Dan Meliza <dan@meliza.org>
 # Created Tue Aug 14 15:03:19 2012
 
+from __future__ import division
 from __future__ import unicode_literals
 import os
 import glob
@@ -96,6 +97,7 @@ def rescale(src_type, tgt_type):
     d2 = ewave.rescale(d1, tgt_type)
     assert d2.dtype == dtype(tgt_type)
 
+
 # minor semantic checks
 @raises(ValueError)
 def test00_mode():
@@ -118,16 +120,35 @@ def test00_invalidtype():
         return
     raise Exception("Exception was not raised for invalid type")
 
+
 @raises(ewave.Error)
 def test00_rescalebad():
     ewave.rescale([1,2,3],'S2')
 
+
 # behavior checks
-def test01_rescale():
+def test01_rescaletypes():
     dtypes = ('u1','h','i','l','f','d')
     for src in dtypes:
         for tgt in dtypes:
             yield rescale, src, tgt
+
+
+# tests rescaling at edges
+def test01_rescalevalues():
+    from numpy import array
+    tests = ((32767, 'h', 1 - 1 / (1 << 15)),
+             (32768, 'h', -1.0),
+             ((1 << 31) - 1, 'i', 1 - 1 / (1 << 31)),
+             (1 << 31, 'i', -1.0),)
+    for val, dtype, expected in tests:
+        assert_almost_equal(ewave.rescale(array([val], dtype), 'f')[0], expected)
+
+
+def test01_clipping():
+    assert_almost_equal(ewave.rescale(ewave.rescale([-1.01], 'h'), 'f')[0], -1.0)
+    assert_almost_equal(ewave.rescale(ewave.rescale([1.01], 'i'), 'f')[0], 1.0)
+
 
 def test01_read():
     for mmap in (False,'c','r'):
