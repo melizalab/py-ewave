@@ -159,9 +159,9 @@ class wavfile(object):
             return
         self.fp.seek(4)
         self.fp.write(
-            struct.pack(b"<l", self._data_offset + self._bytes_written - 8))
+            struct.pack(b"<L", self._data_offset + self._bytes_written - 8))
         self.fp.seek(self._data_offset - 4)
-        self.fp.write(struct.pack(b"<l", self._bytes_written))
+        self.fp.write(struct.pack(b"<L", self._bytes_written))
         self.fp.flush()
         return self
 
