@@ -40,9 +40,9 @@ setup(
     ],
 
     author='C Daniel Meliza',
-    author_email='"dan" at the domain "meliza.org"',
+    author_email='dan@meliza.org',
     maintainer='C Daniel Meliza',
-    maintainer_email='"dan" at the domain "meliza.org"',
+    maintainer_email='dan@meliza.org',
     url="https://github.com/melizalab/py-ewave",
     download_url="https://github.com/melizalab/py-ewave/downloads",
 
