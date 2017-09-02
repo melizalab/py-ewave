@@ -14,37 +14,38 @@ except ImportError:
     use_setuptools()
     from setuptools import setup
 
+VERSION = "1.0.5"
+
+cls_txt = """
+License :: OSI Approved :: Python Software Foundation License
+Development Status :: 5 - Production/Stable
+Environment :: Console
+Intended Audience :: Developers
+Topic :: Multimedia :: Sound/Audio :: Conversion
+Operating System :: Unix
+Operating System :: POSIX :: Linux
+Operating System :: MacOS :: MacOS X
+Natural Language :: English
+Programming Language :: Python
+"""
+
 long_desc = """Pure python module providing support for reading and
 writing extended WAVE audio file formats, including IEEE floats and >2 channels.
 """
 
 setup(
     name='ewave',
-    version='1.0.5',
+    version=VERSION,
     py_modules=['ewave'],
+    install_requires=["numpy>=1.8"],
 
     description="Extended WAVE I/O",
     long_description=long_desc,
-    classifiers=[
-        "License :: OSI Approved :: Python Software Foundation License",
-        "Development Status :: 5 - Production/Stable",
-        "Environment :: Console",
-        "Intended Audience :: Developers",
-        "Topic :: Multimedia :: Sound/Audio :: Conversion",
-        "Operating System :: Unix",
-        "Operating System :: POSIX :: Linux",
-        "Operating System :: MacOS :: MacOS X",
-        "Natural Language :: English",
-        "Programming Language :: Python",
-        "Programming Language :: Python :: 3",
-    ],
-
-    author='C Daniel Meliza',
-    author_email='dan@meliza.org',
-    maintainer='C Daniel Meliza',
-    maintainer_email='dan@meliza.org',
+    classifiers=[x for x in cls_txt.split("\n") if x],
+    author='Dan Meliza',
+    maintainer='Dan Meliza',
     url="https://github.com/melizalab/py-ewave",
-    download_url="https://github.com/melizalab/py-ewave/downloads",
+    download_url="https://github.com/melizalab/py-ewave/archive/%s.tar.gz" % VERSION,
 
     test_suite='nose.collector'
 )
