@@ -14,7 +14,7 @@ except ImportError:
     use_setuptools()
     from setuptools import setup
 
-VERSION = "1.0.5"
+from ewave import __version__
 
 cls_txt = """
 License :: OSI Approved :: Python Software Foundation License
@@ -35,7 +35,7 @@ writing extended WAVE audio file formats, including IEEE floats and >2 channels.
 
 setup(
     name='ewave',
-    version=VERSION,
+    version=__version__,
     py_modules=['ewave'],
     install_requires=["numpy>=1.8"],
 
@@ -45,7 +45,6 @@ setup(
     author='Dan Meliza',
     maintainer='Dan Meliza',
     url="https://github.com/melizalab/py-ewave",
-    download_url="https://github.com/melizalab/py-ewave/archive/%s.tar.gz" % VERSION,
 
     test_suite='nose.collector'
 )

@@ -121,6 +121,32 @@ def test00_invalidtype():
     raise Exception("Exception was not raised for invalid type")
 
 
+def test00_intformat():
+    """integer types stored as WAVE_FORMAT_PCM"""
+    from numpy import zeros
+    dtype = "i"
+    data = zeros(1000, dtype=dtype)
+    fp = open(test_file, "wb")
+    with ewave.open(fp, dtype=dtype, sampling_rate=Fs, nchannels=nchan) as wfp:
+        wfp.write(data)
+    fp.close()
+    with ewave.open(test_file, "r") as rfp:
+        assert rfp._tag == ewave.WAVE_FORMAT_PCM
+
+
+def test00_floatformat():
+    """float types stored as WAVE_FORMAT_IEEE_FLOAT"""
+    from numpy import zeros
+    dtype = "f"
+    data = zeros(1000, dtype=dtype)
+    fp = open(test_file, "wb")
+    with ewave.open(fp, dtype=dtype, sampling_rate=Fs, nchannels=nchan) as wfp:
+        wfp.write(data)
+    fp.close()
+    with ewave.open(test_file, "r") as rfp:
+        assert rfp._tag == ewave.WAVE_FORMAT_IEEE_FLOAT
+
+
 @raises(ewave.Error)
 def test00_rescalebad():
     ewave.rescale([1,2,3],'S2')

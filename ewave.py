@@ -35,8 +35,7 @@ WAVE_FORMAT_PCM = 0x0001
 WAVE_FORMAT_IEEE_FLOAT = 0x0003
 WAVE_FORMAT_EXTENSIBLE = 0xFFFE
 
-__version__ = "1.0.4"
-
+__version__ = "1.0.5"
 
 class Error(Exception):
     pass
@@ -274,15 +273,15 @@ class wavfile(object):
 
         self._dtype = None
         self._fmt_chunk.seek(0)
-        wFormatTag, self._nchannels, self._framerate, nAvgBytesPerSec, wBlockAlign, bits = \
+        self._tag, self._nchannels, self._framerate, nAvgBytesPerSec, wBlockAlign, bits = \
             struct.unpack(b'<HHLLHH', self._fmt_chunk.read(16))
         # load extended block if it's there
-        if wFormatTag == WAVE_FORMAT_EXTENSIBLE:
+        if self._tag == WAVE_FORMAT_EXTENSIBLE:
             if self._fmt_chunk.getsize() < 16:
                 raise Error('extensible format but no format extension')
-            cbSize, wValidBits, dwChannelMask, wFormatTag = \
+            cbSize, wValidBits, dwChannelMask, self._tag = \
                 struct.unpack(b'<hhlH', self._fmt_chunk.read(10))
-        if wFormatTag == WAVE_FORMAT_PCM:
+        if self._tag == WAVE_FORMAT_PCM:
             # bit size is rounded up to the nearest multiple of 8; I'm
             # not going to support any format that can't be easily
             # mmap'd, i.e. files that have weird container sizes (like 24)
@@ -298,13 +297,13 @@ class wavfile(object):
                 self._dtype = dtype('<l')
             else:
                 raise Error("unsupported bit depth: %d" % bits)
-        elif wFormatTag == WAVE_FORMAT_IEEE_FLOAT:
+        elif self._tag == WAVE_FORMAT_IEEE_FLOAT:
             try:
                 self._dtype = dtype('float%d' % bits)
             except:
                 raise Error("unsupported bit depth for IEEE floats: %d" % bits)
         else:
-            raise Error('unsupported format: %r' % (wFormatTag,))
+            raise Error('unsupported format: %r' % (self._tag,))
         self._data_offset = self._data_chunk.offset + 8
         if self.mode == "r+":
             self.fp.seek(0, 2)
