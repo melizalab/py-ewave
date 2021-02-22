@@ -25,8 +25,7 @@ other exotic encoding schemes are not supported. Does not support bit packings
 where the container sizes don't correspond to mmapable types (e.g. 24 bit). Try
 libsndfile for those sorts of files.
 
-Copyright (C) 2012 Dan Meliza <dan // AT // meliza.org>
-Created 2012-03-29
+Copyright (C) 2012-2021 Dan Meliza <dan // AT // meliza.org>
 
 """
 from __future__ import division
@@ -62,10 +61,7 @@ class wavfile(object):
 
         """
         import sys
-        if sys.version > '3':
-            from builtins import open
-        else:
-            from __builtin__ import open
+        from builtins import open
         from numpy import dtype as ndtype
         # validate arguments; props are overwritten if header is read
         self._dtype = ndtype(dtype)
@@ -76,16 +72,10 @@ class wavfile(object):
         if hasattr(file, 'read'):
             self.fp = file
         else:
-            try:
-                file = file.encode(sys.getfilesystemencoding())
-            except (UnicodeError, LookupError):
-                pass
             if mode not in ('r', 'r+', 'w', 'w+'):
                 raise ValueError("Invalid mode (use 'r', 'r+', 'w', 'w+')")
             self.fp = open(file, mode=mode + 'b')
 
-        # python 2/3 compatibility is tricky here because files opened in 'w+'
-        # will have mode 'r+' under py3
         if self.mode == 'r':
             self._load_header()
         elif self.mode == 'r+':

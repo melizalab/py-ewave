@@ -8,6 +8,7 @@ from __future__ import unicode_literals
 import os
 import glob
 from nose.tools import *
+from numpy.testing import assert_array_almost_equal
 
 import ewave
 
@@ -18,12 +19,6 @@ unsupported_dir = "unsupported"
 test_file = None
 nchan = 2
 Fs = 48000
-
-def compare_arrays(a,b,msg):
-    from numpy import all
-    a,b = a.squeeze(),b.squeeze()
-    assert a.shape==b.shape, "%s: shape %s, expected %s" % (msg, a.shape, b.shape)
-    assert all(a==b), "%s: arrays unequal" % msg
 
 def setup():
     import tempfile
@@ -82,7 +77,7 @@ def readwrite_file(fname):
         assert fp3.nframes == fp1.nframes, fname
 
         d2 = fp3.read(memmap='r+')
-        compare_arrays(d1,d2,fname)
+        assert_array_almost_equal(d1,d2)
 
     os.remove(test_file)
 
@@ -204,13 +199,13 @@ def test02_modify():
     with ewave.open(test_file,"w+",sampling_rate=Fs,dtype='f',nchannels=nchan) as fp:
         fp.write(data)
         d2 = fp.read(memmap='r+')
-        compare_arrays(data,d2,"written data")
+        assert_array_almost_equal(data,d2)
         d2 *= 2
-        compare_arrays(data*2,d2,"modified data")
+        assert_array_almost_equal(data*2,d2)
 
     with ewave.open(test_file,"r") as fp:
         d2 = fp.read(memmap='r')
-        compare_arrays(data*2,d2,"written data")
+        assert_array_almost_equal(data*2,d2)
 
 def test02_append():
     from numpy import random, concatenate
@@ -218,9 +213,9 @@ def test02_append():
     d2 = random.randn(100,nchan)
     with ewave.open(test_file,"w+",sampling_rate=Fs,dtype='f',nchannels=nchan) as fp:
         fp.write(d1)
-        compare_arrays(d1,fp.read(),"first data")
+        assert_array_almost_equal(d1,fp.read())
         fp.write(d2)
-        compare_arrays(concatenate(d1,d2),fp.read(),"second data")
+        assert_array_almost_equal(concatenate([d1,d2]),fp.read())
 
 # Variables:
 # End:
