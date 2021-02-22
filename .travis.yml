@@ -10,9 +10,9 @@ install:
   - pip install nose
   - pip install -e .
 before_script:
-  - python test/fetch_examples.py
+  - bash test/fetch_examples.sh
 script:
-  - python setup.py test
+  - nosetests
 notifications:
   slack:
     secure: gkEltYImd4mDmRx/WZrxT0ylPlP6ycUhOueEgCBV54mY/3PPN28dIaf4DXhzRdhOw50g9b5cRYyrDirX2IlGUq5aUBNC6b6PllytoCEhiZbqLvkEdGjb+vix+IQ9LvOE+mTr8uOkC96Bs6ai3nXK0W00U/9PjjWfAdTflAnf/xg=
