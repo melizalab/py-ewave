@@ -35,7 +35,7 @@ WAVE_FORMAT_PCM = 0x0001
 WAVE_FORMAT_IEEE_FLOAT = 0x0003
 WAVE_FORMAT_EXTENSIBLE = 0xFFFE
 
-__version__ = "1.0.5"
+__version__ = "1.0.6"
 
 class Error(Exception):
     pass
@@ -102,7 +102,6 @@ class wavfile(object):
 
     def __exit__(self, exc_type, exc_val, exc_tb):
         self.__del__()
-        return exc_val
 
     def __del__(self):
         if hasattr(self, 'fp') and hasattr(self.fp, 'close'):
