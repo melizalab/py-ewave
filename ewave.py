@@ -40,8 +40,9 @@ class Error(Exception):
 
 
 class wavfile(object):
-
-    def __init__(self, file, mode='r', sampling_rate=20000, dtype='h', nchannels=1, **kwargs):
+    def __init__(
+        self, file, mode="r", sampling_rate=20000, dtype="h", nchannels=1, **kwargs
+    ):
         """Opens a file for reading and/or writing.
 
         file:          the path of the file to open, or an open file-like object
@@ -61,22 +62,23 @@ class wavfile(object):
         """
         from builtins import open
         from numpy import dtype as ndtype
+
         # validate arguments; props are overwritten if header is read
         self._dtype = ndtype(dtype)
         self._nchannels = int(nchannels)
         self._framerate = int(sampling_rate)
         self._file_format(self._dtype)
 
-        if hasattr(file, 'read'):
+        if hasattr(file, "read"):
             self.fp = file
         else:
-            if mode not in ('r', 'r+', 'w', 'w+'):
+            if mode not in ("r", "r+", "w", "w+"):
                 raise ValueError("Invalid mode (use 'r', 'r+', 'w', 'w+')")
-            self.fp = open(file, mode=mode + 'b')
+            self.fp = open(file, mode=mode + "b")
 
-        if self.mode == 'r':
+        if self.mode == "r":
             self._load_header()
-        elif self.mode == 'r+':
+        elif self.mode == "r+":
             try:
                 self._load_header()
             except EOFError:
@@ -92,20 +94,20 @@ class wavfile(object):
         self.__del__()
 
     def __del__(self):
-        if hasattr(self, 'fp') and hasattr(self.fp, 'close'):
+        if hasattr(self, "fp") and hasattr(self.fp, "close"):
             self.flush()
             self.fp.close()
             del self.fp
 
     @property
     def filename(self):
-        """The path of the file """
+        """The path of the file"""
         return self.fp.name
 
     @property
     def mode(self):
-        """The mode for the file """
-        return self.fp.mode.replace('b', '')
+        """The mode for the file"""
+        return self.fp.mode.replace("b", "")
 
     @property
     def sampling_rate(self):
@@ -125,7 +127,7 @@ class wavfile(object):
 
     @property
     def dtype(self):
-        """Data storage type """
+        """Data storage type"""
         return self._dtype
 
     def __repr__(self):
@@ -136,22 +138,23 @@ class wavfile(object):
             self.mode,
             self.dtype,
             self.sampling_rate,
-            hex(id(self)))
+            hex(id(self)),
+        )
 
     def flush(self):
-        """Flushes data to disk and update header with correct size information """
+        """Flushes data to disk and update header with correct size information"""
         import struct
-        if self.mode == 'r':
+
+        if self.mode == "r":
             return
         self.fp.seek(4)
-        self.fp.write(
-            struct.pack(b"<L", self._data_offset + self._bytes_written - 8))
+        self.fp.write(struct.pack(b"<L", self._data_offset + self._bytes_written - 8))
         self.fp.seek(self._data_offset - 4)
         self.fp.write(struct.pack(b"<L", self._bytes_written))
         self.fp.flush()
         return self
 
-    def read(self, frames=None, offset=0, memmap='c'):
+    def read(self, frames=None, offset=0, memmap="c"):
         """Returns acoustic data from file.
 
         By default, the returned value is a memmap of the data in
@@ -172,22 +175,27 @@ class wavfile(object):
         """
         from numpy import memmap as mmap
         from numpy import fromfile
-        if self.mode == 'w':
-            raise Error('file is write-only')
-        if self.mode in ('r+', 'w+'):
+
+        if self.mode == "w":
+            raise Error("file is write-only")
+        if self.mode in ("r+", "w+"):
             self.fp.flush()
         # find offset
         coff = self._data_offset + offset * self.nchannels * self._dtype.itemsize
         if frames is None:
             frames = self.nframes - offset
         if memmap:
-            A = mmap(self.fp, offset=coff, dtype=self._dtype, mode=memmap,
-                     shape=frames * self.nchannels)
+            A = mmap(
+                self.fp,
+                offset=coff,
+                dtype=self._dtype,
+                mode=memmap,
+                shape=frames * self.nchannels,
+            )
         else:
             pos = self.fp.tell()
             self.fp.seek(coff)
-            A = fromfile(
-                self.fp, dtype=self._dtype, count=frames * self.nchannels)
+            A = fromfile(self.fp, dtype=self._dtype, count=frames * self.nchannels)
             self.fp.seek(pos)
 
         if self.nchannels > 1:
@@ -208,10 +216,11 @@ class wavfile(object):
                     used, which can result in clipping.
         """
         from numpy import asarray
-        if self.mode == 'r':
-            raise Error('file is read-only')
-        if hasattr(self, '_postdata_chunk') and self._postdata_chunk:
-            raise Error('cannot append to data chunk without overwriting other chunks')
+
+        if self.mode == "r":
+            raise Error("file is read-only")
+        if hasattr(self, "_postdata_chunk") and self._postdata_chunk:
+            raise Error("cannot append to data chunk without overwriting other chunks")
 
         if not scale:
             data = asarray(data, self._dtype)
@@ -222,16 +231,16 @@ class wavfile(object):
         return self
 
     def _load_header(self):
-        """Reads metadata from header """
+        """Reads metadata from header"""
         from numpy import dtype
         from chunk import Chunk
         import struct
 
         fp = Chunk(self.fp, bigendian=0)
-        if fp.getname() != b'RIFF':
-            raise Error('file does not start with RIFF id')
-        if fp.read(4) != b'WAVE':
-            raise Error('not a WAVE file')
+        if fp.getname() != b"RIFF":
+            raise Error("file does not start with RIFF id")
+        if fp.read(4) != b"WAVE":
+            raise Error("not a WAVE file")
         self._fmt_chunk = None
         self._fact_chunk = None
         self._data_chunk = None
@@ -242,13 +251,13 @@ class wavfile(object):
             except EOFError:
                 break
             chunkname = chunk.getname()
-            if chunkname == b'fmt ':
+            if chunkname == b"fmt ":
                 self._fmt_chunk = chunk
-            elif chunkname == b'fact':
+            elif chunkname == b"fact":
                 self._fact_chunk = chunk
-            elif chunkname == b'data':
+            elif chunkname == b"data":
                 if not self._fmt_chunk:
-                    raise Error('data chunk before fmt chunk')
+                    raise Error("data chunk before fmt chunk")
                 self._data_chunk = chunk
             elif self._data_chunk and self._fact_chunk:
                 # check whether a chunk is present after the data chunk to
@@ -260,37 +269,44 @@ class wavfile(object):
 
         self._dtype = None
         self._fmt_chunk.seek(0)
-        self._tag, self._nchannels, self._framerate, nAvgBytesPerSec, wBlockAlign, bits = \
-            struct.unpack(b'<HHLLHH', self._fmt_chunk.read(16))
+        (
+            self._tag,
+            self._nchannels,
+            self._framerate,
+            nAvgBytesPerSec,
+            wBlockAlign,
+            bits,
+        ) = struct.unpack(b"<HHLLHH", self._fmt_chunk.read(16))
         # load extended block if it's there
         if self._tag == WAVE_FORMAT_EXTENSIBLE:
             if self._fmt_chunk.getsize() < 16:
-                raise Error('extensible format but no format extension')
-            cbSize, wValidBits, dwChannelMask, self._tag = \
-                struct.unpack(b'<hhlH', self._fmt_chunk.read(10))
+                raise Error("extensible format but no format extension")
+            cbSize, wValidBits, dwChannelMask, self._tag = struct.unpack(
+                b"<hhlH", self._fmt_chunk.read(10)
+            )
         if self._tag == WAVE_FORMAT_PCM:
             # bit size is rounded up to the nearest multiple of 8; I'm
             # not going to support any format that can't be easily
             # mmap'd, i.e. files that have weird container sizes (like 24)
             if bits <= 8:
-                self._dtype = dtype('B')
+                self._dtype = dtype("B")
             elif bits <= 16:
-                self._dtype = dtype('<h')
+                self._dtype = dtype("<h")
             elif bits <= 24:
                 raise Error("unsupported bit depth: %d" % bits)
             elif bits <= 32:
-                self._dtype = dtype('<i')
+                self._dtype = dtype("<i")
             elif bits == 64:
-                self._dtype = dtype('<l')
+                self._dtype = dtype("<l")
             else:
                 raise Error("unsupported bit depth: %d" % bits)
         elif self._tag == WAVE_FORMAT_IEEE_FLOAT:
             try:
-                self._dtype = dtype('float%d' % bits)
+                self._dtype = dtype("float%d" % bits)
             except:
                 raise Error("unsupported bit depth for IEEE floats: %d" % bits)
         else:
-            raise Error('unsupported format: %r' % (self._tag,))
+            raise Error("unsupported format: %r" % (self._tag,))
         self._data_offset = self._data_chunk.offset + 8
         if self.mode == "r+":
             self.fp.seek(0, 2)
@@ -298,22 +314,23 @@ class wavfile(object):
 
     @classmethod
     def _file_format(cls, dtype):
-        """Returns appropriate file format or raises an error """
-        if dtype.kind == 'i' or (dtype.kind == 'u' and dtype.itemsize == 1):
+        """Returns appropriate file format or raises an error"""
+        if dtype.kind == "i" or (dtype.kind == "u" and dtype.itemsize == 1):
             return WAVE_FORMAT_PCM
-        elif dtype.kind == 'f':
+        elif dtype.kind == "f":
             return WAVE_FORMAT_IEEE_FLOAT
         else:
             raise Error("unsupported type %r cannot be stored in wave files" % dtype)
 
     def _write_header(self, sampling_rate, dtype, nchannels, write_fact=None):
-        """Creates header for wave file based on sampling rate and data type """
+        """Creates header for wave file based on sampling rate and data type"""
         # this is a bit tricky b/c Chunk is a read-only class
         # however, this only gets called for a pristine file
         # we'll have to go back and patch up the sizes later
         import struct
+
         # main chunk
-        out = struct.pack(b'<4sl4s', b'RIFF', 0, b'WAVE')
+        out = struct.pack(b"<4sl4s", b"RIFF", 0, b"WAVE")
         # fmt chunk
         tag = etag = self._file_format(self._dtype)
         fmt_size = 16
@@ -321,24 +338,34 @@ class wavfile(object):
             fmt_size = 40
             tag = WAVE_FORMAT_EXTENSIBLE
 
-        out += struct.pack(b'<4slHHllHH',
-                           b'fmt ', fmt_size, tag, self._nchannels, self._framerate,
-                           self._nchannels * self._framerate *
-                           self._dtype.itemsize,
-                           self._nchannels * self._dtype.itemsize,
-                           self._dtype.itemsize * 8)
+        out += struct.pack(
+            b"<4slHHllHH",
+            b"fmt ",
+            fmt_size,
+            tag,
+            self._nchannels,
+            self._framerate,
+            self._nchannels * self._framerate * self._dtype.itemsize,
+            self._nchannels * self._dtype.itemsize,
+            self._dtype.itemsize * 8,
+        )
 
         if tag == WAVE_FORMAT_EXTENSIBLE:
-            out += struct.pack(b'<HHlH14s', 22,
-                               self._dtype.itemsize * 8,
-                               # use the full bitdepth
-                               (1 << self._nchannels) - 1,
-                               etag,
-                               b'\x00\x00\x00\x00\x10\x00\x80\x00\x00\xaa\x008\x9b\x71')
+            out += struct.pack(
+                b"<HHlH14s",
+                22,
+                self._dtype.itemsize * 8,
+                # use the full bitdepth
+                (1 << self._nchannels) - 1,
+                etag,
+                b"\x00\x00\x00\x00\x10\x00\x80\x00\x00\xaa\x008\x9b\x71",
+            )
 
         # fact chunk
-        if write_fact or (write_fact is None and tag in (WAVE_FORMAT_IEEE_FLOAT,
-                                                         WAVE_FORMAT_EXTENSIBLE)):
+        if write_fact or (
+            write_fact is None
+            and tag in (WAVE_FORMAT_IEEE_FLOAT, WAVE_FORMAT_EXTENSIBLE)
+        ):
             out += struct.pack(b"<4sll", b"fact", 4, self._dtype.itemsize)
         # beginning of data chunk
         out += struct.pack(b"<4sl", b"data", 0)
@@ -359,6 +386,7 @@ def rescale(data, tgt_dtype):
     - tgt_dtype: the data type of the target container
     """
     from numpy import asarray, dtype, minimum, maximum
+
     # convert to numpy array, retaining best type
     data = asarray(data)
     src = data.dtype
@@ -366,30 +394,30 @@ def rescale(data, tgt_dtype):
     if src == tgt:
         return data
 
-    if tgt.kind == 'f':
-        if src.kind == 'f':
+    if tgt.kind == "f":
+        if src.kind == "f":
             return data.astype(tgt)
         umax = 1 << (src.itemsize * 8 - 1)
         out = (data / umax).astype(tgt)
-        if src.kind == 'u':
+        if src.kind == "u":
             out -= 1.0
         return out
 
-    elif src.kind == 'f' and tgt.kind in ('i', 'u'):
+    elif src.kind == "f" and tgt.kind in ("i", "u"):
         umax = 1 << (tgt.itemsize * 8 - 1)
         out = data * umax
         # assume positive clipping - may break on other architectures
         out = minimum(maximum(out, -umax), umax - 1).astype(tgt)
 
-    elif tgt.kind in ('i', 'u'):
+    elif tgt.kind in ("i", "u"):
         if tgt > src:
-            out = (data.astype(tgt) << (tgt.itemsize - src.itemsize) * 8)
+            out = data.astype(tgt) << (tgt.itemsize - src.itemsize) * 8
         else:
             out = (data >> (src.itemsize - tgt.itemsize) * 8).astype(tgt)
     else:
         raise Error("unsupported target type %r" % tgt)
 
-    if src.kind != tgt.kind and src.kind == 'u' or tgt.kind == 'u':
+    if src.kind != tgt.kind and src.kind == "u" or tgt.kind == "u":
         out += asarray(1, dtype=tgt) << tgt.itemsize * 8 - 1
 
     return out

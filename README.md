@@ -2,9 +2,9 @@
 
 Pure python support for reading and writing extended WAVE formats.
 
-The wave module in Python's standard library is old and doesn't support a number
-of useful formats and encodings, notably IEEE floats. Ewave is a small, simple
-solution written in pure Python that provides a number of enhanced features:
+The wave module in Python's standard library doesn't support a number of useful
+formats and encodings, notably IEEE floats. Ewave is a small, simple solution
+written in pure Python that provides a number of enhanced features:
 
 -   Floating point formats
 -   Extensible formats (> 2 channels, larger bit depths)
@@ -16,11 +16,10 @@ solution written in pure Python that provides a number of enhanced features:
 
 ### Requirements and installation
 
-Ewave requires Python 2.6+ or 3.2+ and numpy 1.0+.
+Ewave requires Python 3.6+ and numpy 1.19+.
 
-To install, run `python setup.py install` in the source directory, or
-`pip install ewave`. Because numpy is a large installation, it's not installed
-automatically; run `pip install numpy` if you don't already have it.
+To install, run `pip install .` in the source directory, or
+`pip install ewave`.
 
 ### Usage
 
@@ -48,7 +47,7 @@ with ewave.open("myfile.wav","w+",sampling_rate=48000,dtype='f',nchannels=2) as 
 
 Ewave has been tested on a large number of different WAVE formats and comes with
 a fairly extensive unit test suite.  To run unit tests on files, place them in
-the 'test' subdirectory and run `nosetests`.  You can also place unsupported or
+the 'test' subdirectory and run `pytest`.  You can also place unsupported or
 invalid files in the 'unsupported' directory to test whether ewave rejects them
 correctly.  Bug reports are always appreciated.
 
@@ -76,5 +75,3 @@ library and is released under the same Python Software Foundation Licence
 Information about the WAVE formats supported by this module was extensively
 gleaned from
 <http://www-mmsp.ece.mcgill.ca/documents/audioformats/wave/wave.html>.
-
-[![Build Status](https://travis-ci.org/melizalab/py-ewave.png?branch=master)](https://travis-ci.org/melizalab/py-ewave)
