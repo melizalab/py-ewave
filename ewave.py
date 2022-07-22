@@ -28,8 +28,6 @@ libsndfile for those sorts of files.
 Copyright (C) 2012-2021 Dan Meliza <dan // AT // meliza.org>
 
 """
-from __future__ import division
-from __future__ import unicode_literals
 WAVE_FORMAT_PCM = 0x0001
 WAVE_FORMAT_IEEE_FLOAT = 0x0003
 WAVE_FORMAT_EXTENSIBLE = 0xFFFE
@@ -61,7 +59,6 @@ class wavfile(object):
         underlying file when the context exits.
 
         """
-        import sys
         from builtins import open
         from numpy import dtype as ndtype
         # validate arguments; props are overwritten if header is read
@@ -350,6 +347,7 @@ class wavfile(object):
         self.fp.write(out)
         self._data_offset = self.fp.tell()
         self._bytes_written = 0
+
 
 open = wavfile
 
