@@ -34,7 +34,8 @@ WAVE_FORMAT_PCM = 0x0001
 WAVE_FORMAT_IEEE_FLOAT = 0x0003
 WAVE_FORMAT_EXTENSIBLE = 0xFFFE
 
-__version__ = "1.0.6"
+__version__ = "1.0.7"
+
 
 class Error(Exception):
     pass
@@ -217,7 +218,7 @@ class wavfile(object):
 
         if not scale:
             data = asarray(data, self._dtype)
-        data = rescale(data, self._dtype).tostring()
+        data = rescale(data, self._dtype).tobytes()
 
         self.fp.write(data)
         self._bytes_written += len(data)
