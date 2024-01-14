@@ -122,7 +122,7 @@ class wavfile:
         if hasattr(self, "_bytes_written"):
             nbytes = self._bytes_written
         else:
-            nbytes = self._data_chunk.getsize()
+            nbytes = self._data_chunk.chunksize
         return nbytes // (self.dtype.itemsize * self.nchannels)
 
     @property
@@ -233,7 +233,7 @@ class wavfile:
     def _load_header(self):
         """Reads metadata from header"""
         import struct
-        from chunk import Chunk
+        from wave import _Chunk as Chunk
 
         from numpy import dtype
 
@@ -280,7 +280,7 @@ class wavfile:
         ) = struct.unpack(b"<HHLLHH", self._fmt_chunk.read(16))
         # load extended block if it's there
         if self._tag == WAVE_FORMAT_EXTENSIBLE:
-            if self._fmt_chunk.getsize() < 16:
+            if self._fmt_chunk.chunksize < 16:
                 raise Error("extensible format but no format extension")
             cbSize, wValidBits, dwChannelMask, self._tag = struct.unpack(
                 b"<hhlH", self._fmt_chunk.read(10)
