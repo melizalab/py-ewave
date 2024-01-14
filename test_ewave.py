@@ -2,15 +2,15 @@
 # -*- mode: python -*-
 # Copyright (C) 2012 Dan Meliza <dan@meliza.org>
 # Created Tue Aug 14 15:03:19 2012
-import os
-import glob
-import unittest
+from pathlib import Path
+import pytest
+import numpy as np
 from numpy.testing import assert_array_almost_equal
 
 import ewave
 
-test_dir = "test"
-unsupported_dir = "unsupported"
+test_dir = Path("test")
+unsupported_dir = Path("unsupported")
 
 # defaults for test file
 test_file = None
@@ -18,215 +18,207 @@ nchan = 2
 Fs = 48000
 
 
-class TestEwave(unittest.TestCase):
-    def setUp(self):
-        import tempfile
+@pytest.fixture
+def tmp_file(tmp_path):
+    return tmp_path / "test.wav"
 
-        self.temp_dir = tempfile.mkdtemp()
-        self.test_file = os.path.join(self.temp_dir, "test.wav")
 
-    def tearDown(self):
-        import shutil
+@pytest.fixture
+def test_files():
+    return test_dir.glob("*.wav")
 
-        shutil.rmtree(self.temp_dir)
 
-    def read_file(self, fname, memmap="r"):
-        fp = ewave.open(fname, "r")
-        self.assertEqual(fp.mode, "r")
-        data = fp.read(memmap=memmap)
-        if fp.nchannels == 1:
-            self.assertEqual(data.ndim, 1)
-            self.assertEqual(data.size, fp.nframes)
-        else:
-            self.assertEqual(data.shape[0], fp.nframes)
-            self.assertEqual(data.shape[1], fp.nchannels)
+@pytest.fixture
+def unsupported_files():
+    return unsupported_dir.glob("*.wav")
 
-    def write_file(self, fname, tgt_type=None):
-        fp1 = ewave.open(fname, "r")
-        with ewave.open(
-            self.test_file,
+
+def rescale(src_type, tgt_type):
+    from numpy import ones, dtype
+
+    d1 = ones(1000, dtype=src_type)
+    if dtype(src_type).kind == "f":
+        d1 *= 0.9
+    d2 = ewave.rescale(d1, tgt_type)
+    assert d2.dtype == dtype(tgt_type)
+
+
+def test00_invalid_mode(tmp_file):
+    with pytest.raises(ValueError):
+        ewave.open(tmp_file, "a")
+
+
+def test01_create_file_from_handle(tmp_file):
+    fp = open(tmp_file, "wb")
+    with ewave.open(fp, sampling_rate=Fs, nchannels=nchan) as wfp:
+        assert wfp.sampling_rate == Fs
+        assert wfp.filename == str(tmp_file)
+
+
+def test02_invalid_dtype(tmp_file):
+    with pytest.raises(ewave.Error):
+        ewave.open(tmp_file, "w", dtype="S2")
+    assert not tmp_file.exists(), "file was created for invalid type"
+
+
+def test03_create_int_format(tmp_file):
+    """integer types stored as WAVE_FORMAT_PCM"""
+    from numpy import zeros
+
+    dtype = "i"
+    data = zeros(1000, dtype=dtype)
+    with ewave.open(
+        tmp_file, mode="w", dtype=dtype, sampling_rate=Fs, nchannels=nchan
+    ) as wfp:
+        wfp.write(data)
+    with ewave.open(tmp_file, "r") as rfp:
+        assert rfp._tag == ewave.WAVE_FORMAT_PCM
+
+
+def test04_create_float_format(tmp_file):
+    """float types stored as WAVE_FORMAT_IEEE_FLOAT"""
+    from numpy import zeros
+
+    dtype = "f"
+    data = zeros(1000, dtype=dtype)
+    with ewave.open(
+        tmp_file, "w", dtype=dtype, sampling_rate=Fs, nchannels=nchan
+    ) as wfp:
+        wfp.write(data)
+    with ewave.open(tmp_file, "r") as rfp:
+        assert rfp._tag == ewave.WAVE_FORMAT_IEEE_FLOAT
+
+
+def test05_rescale_invalid_dtype():
+    with pytest.raises(ewave.Error):
+        ewave.rescale([1, 2, 3], "S2")
+
+
+def test06_rescaletypes():
+    dtypes = ("u1", "h", "i", "l", "f", "d")
+    for src in dtypes:
+        for tgt in dtypes:
+            rescale(src, tgt)
+
+
+def test07_rescalevalues():
+    tests = (
+        (32767, "h", 1 - 1 / (1 << 15)),
+        (32768, "h", -1.0),
+        ((1 << 31) - 1, "i", 1 - 1 / (1 << 31)),
+        (1 << 31, "i", -1.0),
+    )
+    for val, dtype, expected in tests:
+        rescaled = ewave.rescale(np.array([val]).astype(dtype), "f")[0]
+        assert rescaled == pytest.approx(expected)
+
+
+def test08_clipping():
+    assert ewave.rescale(ewave.rescale([-1.01], "h"), "f")[0] == pytest.approx(-1.0)
+    assert ewave.rescale(ewave.rescale([1.01], "i"), "f")[0] == pytest.approx(1.0)
+
+
+def test09_read_examples():
+    for mmap in (False, "c", "r"):
+        for fname in test_dir.glob("*.wav"):
+            with ewave.open(fname, "r") as fp:
+                assert fp.mode == "r"
+                data = fp.read(memmap=mmap)
+                if fp.nchannels == 1:
+                    assert data.ndim == 1
+                    assert data.size == fp.nframes
+                else:
+                    assert data.shape[0] == fp.nframes
+                    assert data.shape[1] == fp.nchannels
+
+
+def test10_open_unsupported():
+    for fname in unsupported_dir.glob("*.wav"):
+        with pytest.raises(ewave.Error):
+            _ = ewave.open(fname, "r")
+
+
+def test11_write_examples(tmp_file):
+    for fname in test_dir.glob("*.wav"):
+        with ewave.open(fname, "r") as ifp, ewave.open(
+            tmp_file,
             "w",
-            sampling_rate=fp1.sampling_rate,
-            dtype=tgt_type or fp1.dtype,
-            nchannels=fp1.nchannels,
-        ) as fp2:
-            self.assertEqual(fp2.filename, self.test_file)
-            self.assertEqual(fp2.sampling_rate, fp1.sampling_rate)
-            self.assertEqual(fp2.nchannels, fp1.nchannels)
-            if not tgt_type:
-                self.assertEqual(fp2.dtype, fp1.dtype)
-            fp2.write(fp1.read())
-            self.assertEqual(fp2.nframes, fp1.nframes)
-        os.remove(self.test_file)
+            sampling_rate=ifp.sampling_rate,
+            dtype=ifp.dtype,
+            nchannels=ifp.nchannels,
+        ) as ofp:
+            assert ofp.filename == str(tmp_file)
+            assert ofp.sampling_rate == ifp.sampling_rate
+            assert ofp.nchannels == ifp.nchannels
+            assert ofp.dtype == ifp.dtype
+            ofp.write(ifp.read())
+            assert ofp.nframes == ifp.nframes
 
-    def readwrite_file(self, fname):
-        """test files in r+ mode"""
-        fp1 = ewave.open(fname, "r")
-        d1 = fp1.read()
-        with ewave.open(
-            self.test_file,
-            "w",
-            sampling_rate=fp1.sampling_rate,
-            dtype=fp1.dtype,
-            nchannels=fp1.nchannels,
-        ) as fp2:
-            fp2.write(d1, scale=False).flush()
 
-        with ewave.open(self.test_file, "r+") as fp3:
-            self.assertEqual(fp3.filename, self.test_file)
-            self.assertEqual(fp3.sampling_rate, fp1.sampling_rate)
-            self.assertEqual(fp3.dtype, fp1.dtype)
-            self.assertEqual(fp3.nchannels, fp1.nchannels)
-            self.assertEqual(fp3.nframes, fp1.nframes)
+def test12_convert(tmp_file):
+    for tgt_type in ("f", "h"):
+        for fname in test_dir.glob("*.wav"):
+            with ewave.open(fname, "r") as ifp, ewave.open(
+                tmp_file,
+                "w",
+                sampling_rate=ifp.sampling_rate,
+                dtype=tgt_type,
+                nchannels=ifp.nchannels,
+            ) as ofp:
+                assert ofp.filename == str(tmp_file)
+                assert ofp.sampling_rate == ifp.sampling_rate
+                assert ofp.nchannels == ifp.nchannels
+                assert ofp.dtype == tgt_type
+                ofp.write(ifp.read())
+                assert ofp.nframes == ifp.nframes
 
-            d2 = fp3.read(memmap="r+")
-            assert_array_almost_equal(d1, d2)
 
-        os.remove(self.test_file)
+def test13_readwrite(tmp_file):
+    for fname in test_dir.glob("*.wav"):
+        with ewave.open(fname, "r") as ifp:
+            d1 = ifp.read()
+            with ewave.open(
+                tmp_file,
+                "w",
+                sampling_rate=ifp.sampling_rate,
+                dtype=ifp.dtype,
+                nchannels=ifp.nchannels,
+            ) as ofp:
+                ofp.write(d1, scale=False).flush()
 
-    def read_unsupported(self, fname):
-        with self.assertRaises(ewave.Error):
-            self.read_file(fname)
+            with ewave.open(tmp_file, "r+") as rfp:
+                assert rfp.filename == str(tmp_file)
+                assert rfp.sampling_rate == ifp.sampling_rate
+                assert rfp.dtype == ifp.dtype
+                assert rfp.nchannels == ifp.nchannels
+                assert rfp.nframes == ifp.nframes
 
-    def rescale(self, src_type, tgt_type):
-        from numpy import ones, dtype
+                d2 = rfp.read(memmap="r+")
+                assert_array_almost_equal(d1, d2)
 
-        d1 = ones(1000, dtype=src_type)
-        if dtype(src_type).kind == "f":
-            d1 *= 0.9
-        d2 = ewave.rescale(d1, tgt_type)
-        self.assertEqual(d2.dtype, dtype(tgt_type))
 
-    # minor semantic checks
-    def test00_mode(self):
-        with self.assertRaises(ValueError):
-            ewave.open(self.test_file, "a")
+def test14_modify(tmp_file):
+    data = np.random.randn(10000, nchan)
+    with ewave.open(tmp_file, "w+", sampling_rate=Fs, dtype="f", nchannels=nchan) as fp:
+        fp.write(data)
+        d2 = fp.read(memmap="r+")
+        assert_array_almost_equal(data, d2)
+        d2 *= 2
+        assert_array_almost_equal(data * 2, d2)
 
-    def test00_handle(self):
-        fp = open(self.test_file, "wb")
-        with ewave.open(fp, sampling_rate=Fs, nchannels=nchan) as wfp:
-            self.assertEqual(wfp.sampling_rate, Fs)
-            self.assertEqual(wfp.filename, self.test_file)
-        os.remove(self.test_file)
+    with ewave.open(tmp_file, "r") as fp:
+        d2 = fp.read(memmap="r")
+        assert_array_almost_equal(data * 2, d2)
 
-    def test00_invalidtype(self):
-        if os.path.exists(self.test_file):
-            os.remove(self.test_file)
-        try:
-            ewave.open(self.test_file, "w", dtype="S2")
-        except ewave.Error:
-            # verify that file was not created
-            self.assertFalse(
-                os.path.exists(self.test_file), "file was created for invalid type"
-            )
-            return
-        raise Exception("Exception was not raised for invalid type")
 
-    def test00_intformat(self):
-        """integer types stored as WAVE_FORMAT_PCM"""
-        from numpy import zeros
-
-        dtype = "i"
-        data = zeros(1000, dtype=dtype)
-        fp = open(self.test_file, "wb")
-        with ewave.open(fp, dtype=dtype, sampling_rate=Fs, nchannels=nchan) as wfp:
-            wfp.write(data)
-        fp.close()
-        with ewave.open(self.test_file, "r") as rfp:
-            self.assertEqual(rfp._tag, ewave.WAVE_FORMAT_PCM)
-
-    def test00_floatformat(self):
-        """float types stored as WAVE_FORMAT_IEEE_FLOAT"""
-        from numpy import zeros
-
-        dtype = "f"
-        data = zeros(1000, dtype=dtype)
-        fp = open(self.test_file, "wb")
-        with ewave.open(fp, dtype=dtype, sampling_rate=Fs, nchannels=nchan) as wfp:
-            wfp.write(data)
-        fp.close()
-        with ewave.open(self.test_file, "r") as rfp:
-            self.assertEqual(rfp._tag, ewave.WAVE_FORMAT_IEEE_FLOAT)
-
-    def test00_rescalebad(self):
-        with self.assertRaises(ewave.Error):
-            ewave.rescale([1, 2, 3], "S2")
-
-    # behavior checks
-    def test01_rescaletypes(self):
-        dtypes = ("u1", "h", "i", "l", "f", "d")
-        for src in dtypes:
-            for tgt in dtypes:
-                self.rescale(src, tgt)
-
-    # tests rescaling at edges
-    def test01_rescalevalues(self):
-        from numpy import array
-
-        tests = (
-            (32767, "h", 1 - 1 / (1 << 15)),
-            (32768, "h", -1.0),
-            ((1 << 31) - 1, "i", 1 - 1 / (1 << 31)),
-            (1 << 31, "i", -1.0),
-        )
-        for val, dtype, expected in tests:
-            self.assertAlmostEqual(ewave.rescale(array([val], dtype), "f")[0], expected)
-
-    def test01_clipping(self):
-        self.assertAlmostEqual(ewave.rescale(ewave.rescale([-1.01], "h"), "f")[0], -1.0)
-        self.assertAlmostEqual(ewave.rescale(ewave.rescale([1.01], "i"), "f")[0], 1.0)
-
-    def test01_read(self):
-        for mmap in (False, "c", "r"):
-            for fname in glob.iglob(os.path.join(test_dir, "*.wav")):
-                self.read_file(fname, mmap)
-
-    def test01_unsupported(self):
-        for fname in glob.iglob(os.path.join(unsupported_dir, "*.wav")):
-            self.read_unsupported(fname)
-
-    def test01_write(self):
-        for fname in glob.iglob(os.path.join(test_dir, "*.wav")):
-            self.write_file(fname)
-
-    def test01_convert(self):
-        for tgt_type in ("f", "h"):
-            for fname in glob.iglob(os.path.join(test_dir, "*.wav")):
-                self.write_file(fname, tgt_type)
-
-    def test01_readwrite(self):
-        for fname in glob.iglob(os.path.join(test_dir, "*.wav")):
-            self.readwrite_file(fname)
-
-    def test02_modify(self):
-        from numpy.random import randn
-
-        data = randn(10000, nchan)
-        with ewave.open(
-            self.test_file, "w+", sampling_rate=Fs, dtype="f", nchannels=nchan
-        ) as fp:
-            fp.write(data)
-            d2 = fp.read(memmap="r+")
-            assert_array_almost_equal(data, d2)
-            d2 *= 2
-            assert_array_almost_equal(data * 2, d2)
-
-        with ewave.open(self.test_file, "r") as fp:
-            d2 = fp.read(memmap="r")
-            assert_array_almost_equal(data * 2, d2)
-
-    def test02_append(self):
-        from numpy import random, concatenate
-
-        d1 = random.randn(100, nchan)
-        d2 = random.randn(100, nchan)
-        with ewave.open(
-            self.test_file, "w+", sampling_rate=Fs, dtype="f", nchannels=nchan
-        ) as fp:
-            fp.write(d1)
-            assert_array_almost_equal(d1, fp.read())
-            fp.write(d2)
-            assert_array_almost_equal(concatenate([d1, d2]), fp.read())
+def test15_append(tmp_file):
+    d1 = np.random.randn(100, nchan)
+    d2 = np.random.randn(100, nchan)
+    with ewave.open(tmp_file, "w+", sampling_rate=Fs, dtype="f", nchannels=nchan) as fp:
+        fp.write(d1)
+        assert_array_almost_equal(d1, fp.read())
+        fp.write(d2)
+        assert_array_almost_equal(np.concatenate([d1, d2]), fp.read())
 
 
 # Variables:

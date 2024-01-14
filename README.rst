@@ -6,17 +6,17 @@ ewave
 .. |ProjectStatus| image:: https://www.repostatus.org/badges/latest/active.svg
 .. _ProjectStatus: https://www.repostatus.org/#active
 
-.. |Version| image:: https://img.shields.io/pypi/v/py-ewave.svg
-.. _Version: https://pypi.python.org/pypi/py-ewave/
+.. |Version| image:: https://img.shields.io/pypi/v/ewave.svg
+.. _Version: https://pypi.python.org/pypi/ewave/
 
 .. |BuildStatus| image:: https://github.com/melizalab/py-ewave/actions/workflows/tests-python.yml/badge.svg
 .. _BuildStatus: https://github.com/melizalab/py-ewave/actions/workflows/tests-python.yml
 
-.. |License| image:: https://img.shields.io/pypi/l/py-ewave.svg
+.. |License| image:: https://img.shields.io/pypi/l/ewave.svg
 .. _License: https://opensource.org/license/python-2.0/
 
-.. |PythonVersions| image:: https://img.shields.io/pypi/pyversions/py-ewave.svg
-.. _PythonVersions: https://pypi.python.org/pypi/py-ewave/
+.. |PythonVersions| image:: https://img.shields.io/pypi/pyversions/ewave.svg
+.. _PythonVersions: https://pypi.python.org/pypi/ewave/
 
 Pure python support for reading and writing extended WAVE formats.
 
