@@ -1,10 +1,10 @@
-# -*- coding: utf-8 -*-
 # -*- mode: python -*-
 # Copyright (C) 2012 Dan Meliza <dan@meliza.org>
 # Created Tue Aug 14 15:03:19 2012
 from pathlib import Path
-import pytest
+
 import numpy as np
+import pytest
 from numpy.testing import assert_array_almost_equal
 
 import ewave
@@ -34,7 +34,7 @@ def unsupported_files():
 
 
 def rescale(src_type, tgt_type):
-    from numpy import ones, dtype
+    from numpy import dtype, ones
 
     d1 = ones(1000, dtype=src_type)
     if dtype(src_type).kind == "f":

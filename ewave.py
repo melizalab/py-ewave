@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 # -*- mode: python -*-
 """
 Read and write WAVE format files.
@@ -39,7 +38,7 @@ class Error(Exception):
     pass
 
 
-class wavfile(object):
+class wavfile:
     def __init__(
         self, file, mode="r", sampling_rate=20000, dtype="h", nchannels=1, **kwargs
     ):
@@ -60,7 +59,8 @@ class wavfile(object):
         underlying file when the context exits.
 
         """
-        from builtins import open
+        from builtins import open  # noqa: UP029
+
         from numpy import dtype as ndtype
 
         # validate arguments; props are overwritten if header is read
@@ -173,8 +173,8 @@ class wavfile(object):
                   warned that 'w' modes may corrupt data.
 
         """
-        from numpy import memmap as mmap
         from numpy import fromfile
+        from numpy import memmap as mmap
 
         if self.mode == "w":
             raise Error("file is write-only")
@@ -232,9 +232,10 @@ class wavfile(object):
 
     def _load_header(self):
         """Reads metadata from header"""
-        from numpy import dtype
-        from chunk import Chunk
         import struct
+        from chunk import Chunk
+
+        from numpy import dtype
 
         fp = Chunk(self.fp, bigendian=0)
         if fp.getname() != b"RIFF":
@@ -303,10 +304,10 @@ class wavfile(object):
         elif self._tag == WAVE_FORMAT_IEEE_FLOAT:
             try:
                 self._dtype = dtype("float%d" % bits)
-            except:
-                raise Error("unsupported bit depth for IEEE floats: %d" % bits)
+            except TypeError as err:
+                raise Error("unsupported bit depth for IEEE floats: %d" % bits) from err
         else:
-            raise Error("unsupported format: %r" % (self._tag,))
+            raise Error(f"unsupported format: {self._tag}")
         self._data_offset = self._data_chunk.offset + 8
         if self.mode == "r+":
             self.fp.seek(0, 2)
@@ -385,7 +386,7 @@ def rescale(data, tgt_dtype):
     - data: a numpy array or anything convertable into one.
     - tgt_dtype: the data type of the target container
     """
-    from numpy import asarray, dtype, minimum, maximum
+    from numpy import asarray, dtype, maximum, minimum
 
     # convert to numpy array, retaining best type
     data = asarray(data)
