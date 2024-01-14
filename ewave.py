@@ -24,7 +24,7 @@ other exotic encoding schemes are not supported. Does not support bit packings
 where the container sizes don't correspond to mmapable types (e.g. 24 bit). Try
 libsndfile for those sorts of files.
 
-Copyright (C) 2012-2021 Dan Meliza <dan // AT // meliza.org>
+Copyright (C) 2012-2023 Dan Meliza <dan // AT // meliza.org>
 
 """
 from pathlib import Path
@@ -44,7 +44,7 @@ WAVE_FORMAT_PCM = 0x0001
 WAVE_FORMAT_IEEE_FLOAT = 0x0003
 WAVE_FORMAT_EXTENSIBLE = 0xFFFE
 
-__version__ = "1.0.7"
+__version__ = "1.0.8"
 
 
 class Error(Exception):
