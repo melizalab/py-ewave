@@ -27,11 +27,11 @@ libsndfile for those sorts of files.
 Copyright (C) 2012-2021 Dan Meliza <dan // AT // meliza.org>
 
 """
-WAVE_FORMAT_PCM = 0x0001
-WAVE_FORMAT_IEEE_FLOAT = 0x0003
-WAVE_FORMAT_EXTENSIBLE = 0xFFFE
+from pathlib import Path
+from typing import BinaryIO, Optional, Union
 
-__version__ = "1.0.7"
+import numpy as np
+import numpy.typing as npt
 
 # chunk.Chunk is deprecated in py311 and will be removed in py313
 try:
@@ -40,37 +40,49 @@ except ImportError:
     from chunk import Chunk
 
 
+WAVE_FORMAT_PCM = 0x0001
+WAVE_FORMAT_IEEE_FLOAT = 0x0003
+WAVE_FORMAT_EXTENSIBLE = 0xFFFE
+
+__version__ = "1.0.7"
+
+
 class Error(Exception):
     pass
 
 
 class wavfile:
+    """A WAVE file for reading and/or writing.
+
+    file:          the path of the file to open, or an open file-like object
+    mode:          the mode to open the file (r, r+, w, w+). If already open,
+                   uses the file's handle.
+    sampling_rate: for 'w' mode only, set the sampling rate of the data
+    dtype:         for 'w' mode only, set the storage format using one of the following codes:
+                   'b','h','i','l':  8,16,32,64-bit PCM
+                   'f','d':  32,64-bit IEEE float
+    nchannels:     for 'w' mode only, set the number of channels to store
+
+    additional keyword arguments are ignored
+
+    The returned object may be used as a context manager, and will close the
+    underlying file when the context exits.
+
+    """
+
     def __init__(
-        self, file, mode="r", sampling_rate=20000, dtype="h", nchannels=1, **kwargs
+        self,
+        file: Union[str, Path, BinaryIO],
+        mode: str = "r",
+        sampling_rate: int = 20000,
+        dtype: npt.DTypeLike = "h",
+        nchannels: int = 1,
+        **kwargs,
     ):
-        """Opens a file for reading and/or writing.
-
-        file:          the path of the file to open, or an open file-like object
-        mode:          the mode to open the file (r, r+, w, w+). If already open,
-                       uses the file's handle.
-        sampling_rate: for 'w' mode only, set the sampling rate of the data
-        dtype:         for 'w' mode only, set the storage format using one of the following codes:
-                       'b','h','i','l':  8,16,32,64-bit PCM
-                       'f','d':  32,64-bit IEEE float
-        nchannels:     for 'w' mode only, set the number of channels to store
-
-        additional keyword arguments are ignored
-
-        The returned object may be used as a context manager, and will close the
-        underlying file when the context exits.
-
-        """
         from builtins import open  # noqa: UP029
 
-        from numpy import dtype as ndtype
-
         # validate arguments; props are overwritten if header is read
-        self._dtype = ndtype(dtype)
+        self._dtype = np.dtype(dtype)
         self._nchannels = int(nchannels)
         self._framerate = int(sampling_rate)
         self._file_format(self._dtype)
@@ -106,25 +118,25 @@ class wavfile:
             del self.fp
 
     @property
-    def filename(self):
+    def filename(self) -> str:
         """The path of the file"""
         return self.fp.name
 
     @property
-    def mode(self):
+    def mode(self) -> str:
         """The mode for the file"""
         return self.fp.mode.replace("b", "")
 
     @property
-    def sampling_rate(self):
+    def sampling_rate(self) -> int:
         return self._framerate
 
     @property
-    def nchannels(self):
+    def nchannels(self) -> int:
         return self._nchannels
 
     @property
-    def nframes(self):
+    def nframes(self) -> int:
         if hasattr(self, "_bytes_written"):
             nbytes = self._bytes_written
         else:
@@ -132,11 +144,11 @@ class wavfile:
         return nbytes // (self.dtype.itemsize * self.nchannels)
 
     @property
-    def dtype(self):
+    def dtype(self) -> np.dtype:
         """Data storage type"""
         return self._dtype
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         return "<open %s.%s '%s', mode '%s', dtype '%s', sampling rate %d at %s>" % (
             self.__class__.__module__,
             self.__class__.__name__,
@@ -160,7 +172,9 @@ class wavfile:
         self.fp.flush()
         return self
 
-    def read(self, frames=None, offset=0, memmap="c"):
+    def read(
+        self, frames: Optional[int] = None, offset: int = 0, memmap: str = "c"
+    ) -> np.ndarray:
         """Returns acoustic data from file.
 
         By default, the returned value is a memmap of the data in
@@ -179,9 +193,6 @@ class wavfile:
                   warned that 'w' modes may corrupt data.
 
         """
-        from numpy import fromfile
-        from numpy import memmap as mmap
-
         if self.mode == "w":
             raise Error("file is write-only")
         if self.mode in ("r+", "w+"):
@@ -191,7 +202,7 @@ class wavfile:
         if frames is None:
             frames = self.nframes - offset
         if memmap:
-            A = mmap(
+            A = np.memmap(
                 self.fp,
                 offset=coff,
                 dtype=self._dtype,
@@ -201,7 +212,7 @@ class wavfile:
         else:
             pos = self.fp.tell()
             self.fp.seek(coff)
-            A = fromfile(self.fp, dtype=self._dtype, count=frames * self.nchannels)
+            A = np.fromfile(self.fp, dtype=self._dtype, count=frames * self.nchannels)
             self.fp.seek(pos)
 
         if self.nchannels > 1:
@@ -210,7 +221,7 @@ class wavfile:
             A.shape = (nsamples // self.nchannels, self.nchannels)
         return A
 
-    def write(self, data, scale=True):
+    def write(self, data: npt.ArrayLike, scale: bool = True):
         """Writes data to the WAVE file
 
         - data : input data, in any form that can be converted to an array with
@@ -385,7 +396,7 @@ class wavfile:
 open = wavfile
 
 
-def rescale(data, tgt_dtype):
+def rescale(data: npt.ArrayLike, tgt_dtype: npt.DTypeLike) -> np.ndarray:
     """Rescales data to the correct range for tgt_dtype.
 
     - data: a numpy array or anything convertable into one.
