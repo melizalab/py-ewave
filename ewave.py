@@ -33,6 +33,12 @@ WAVE_FORMAT_EXTENSIBLE = 0xFFFE
 
 __version__ = "1.0.7"
 
+# chunk.Chunk is deprecated in py311 and will be removed in py313
+try:
+    from wave import _Chunk as Chunk
+except ImportError:
+    from chunk import Chunk
+
 
 class Error(Exception):
     pass
@@ -233,7 +239,6 @@ class wavfile:
     def _load_header(self):
         """Reads metadata from header"""
         import struct
-        from wave import _Chunk as Chunk
 
         from numpy import dtype
 
