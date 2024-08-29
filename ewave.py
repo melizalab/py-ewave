@@ -193,7 +193,9 @@ class wavfile:
         - memmap: if False, reads the whole file into memory at once; if not, returns
                   a numpy.memmap object using this value as the mode argument. 'c'
                   corresponds to copy-on-write; use 'r+' to write changes to disk. Be
-                  warned that 'w' modes may corrupt data.
+                  warned that 'w' modes may corrupt data. Memmap may not work with
+                  certain input types (e.g., files in zip archives) and does not currently work
+                  on Windows.
 
         """
         if self.mode == "w":
