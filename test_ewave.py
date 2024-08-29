@@ -221,5 +221,27 @@ def test15_append(tmp_file):
         assert_array_almost_equal(np.concatenate([d1, d2]), fp.read())
 
 
+def test16_read_from_zip(tmp_path):
+    from zipfile import ZipFile
+
+    wav_name = "test.wav"
+    tmp_file = tmp_path / wav_name
+    tmp_zip = tmp_path / "test.zip"
+    src_data = np.random.randn(10000, nchan)
+    with ewave.open(tmp_file, "w+", sampling_rate=Fs, dtype="f", nchannels=nchan) as fp:
+        fp.write(src_data)
+
+    with ZipFile(tmp_zip, "w") as archive:
+        archive.write(tmp_file, arcname=wav_name)
+
+    with ZipFile(tmp_zip, "r") as archive:
+        with archive.open(wav_name) as zipped_wave:
+            with ewave.open(zipped_wave, "r") as fp:
+                assert fp.sampling_rate == Fs
+                assert fp.nchannels == nchan
+                dst_data = fp.read(memmap=False)
+                assert_array_almost_equal(src_data, dst_data)
+
+
 # Variables:
 # End:

@@ -44,7 +44,7 @@ WAVE_FORMAT_PCM = 0x0001
 WAVE_FORMAT_IEEE_FLOAT = 0x0003
 WAVE_FORMAT_EXTENSIBLE = 0xFFFE
 
-__version__ = "1.0.8"
+__version__ = "1.0.9"
 
 
 class Error(Exception):
@@ -173,7 +173,10 @@ class wavfile:
         return self
 
     def read(
-        self, frames: Optional[int] = None, offset: int = 0, memmap: str = "c"
+        self,
+        frames: Optional[int] = None,
+        offset: int = 0,
+        memmap: Union[str, bool, None] = "c",
     ) -> np.ndarray:
         """Returns acoustic data from file.
 
@@ -212,7 +215,8 @@ class wavfile:
         else:
             pos = self.fp.tell()
             self.fp.seek(coff)
-            A = np.fromfile(self.fp, dtype=self._dtype, count=frames * self.nchannels)
+            data = self.fp.read(frames * self.nchannels * self._dtype.itemsize)
+            A = np.frombuffer(data, dtype=self._dtype)
             self.fp.seek(pos)
 
         if self.nchannels > 1:
