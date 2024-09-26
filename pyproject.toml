@@ -12,6 +12,7 @@ extend-select = [
   "PGH", # pygrep-hooks
   "RUF", # Ruff-specific
   "UP",  # pyupgrade
+  "NPY201", # numpy 2.0
 ]
 
 [tool.mypy]
