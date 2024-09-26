@@ -343,7 +343,7 @@ class wavfile:
         elif dtype.kind == "f":
             return WAVE_FORMAT_IEEE_FLOAT
         else:
-            raise Error("unsupported type %r cannot be stored in wave files" % dtype)
+            raise Error(f"unsupported type {dtype} cannot be stored in wave files")
 
     def _write_header(self, sampling_rate, dtype, nchannels, write_fact=None):
         """Creates header for wave file based on sampling rate and data type"""
@@ -438,7 +438,7 @@ def rescale(data: npt.ArrayLike, tgt_dtype: npt.DTypeLike) -> np.ndarray:
         else:
             out = (data >> (src.itemsize - tgt.itemsize) * 8).astype(tgt)
     else:
-        raise Error("unsupported target type %r" % tgt)
+        raise Error(f"unsupported target type {tgt}")
 
     if src.kind != tgt.kind and src.kind == "u" or tgt.kind == "u":
         out += asarray(1, dtype=tgt) << tgt.itemsize * 8 - 1
