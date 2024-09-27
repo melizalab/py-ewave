@@ -132,7 +132,7 @@ def test09_read_examples_nomemmap(test_files):
                 assert data.shape[1] == fp.nchannels
 
 
-@pytest.mark.skipif(sys.platform == "win32", reason="memmap not supported on windows")
+# @pytest.mark.skipif(sys.platform == "win32", reason="memmap not supported on windows")
 def test09_read_examples_memmap(test_files):
     for mmap in ("c", "r"):
         for fname in test_files:
@@ -233,9 +233,11 @@ def test15_append(tmp_file):
     d2 = np.random.randn(100, nchan)
     with ewave.open(tmp_file, "w+", sampling_rate=Fs, dtype="f", nchannels=nchan) as fp:
         fp.write(d1)
-        assert_array_almost_equal(d1, fp.read())
+        result = fp.read(memmap=False)
+        assert_array_almost_equal(d1, result)
         fp.write(d2)
-        assert_array_almost_equal(np.concatenate([d1, d2]), fp.read())
+        result = fp.read(memmap=False)
+        assert_array_almost_equal(np.concatenate([d1, d2]), result)
 
 
 def test16_read_from_zip(tmp_path):
