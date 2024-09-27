@@ -85,6 +85,8 @@ data type, including some 24-bit formats, are not supported. Data cannot
 be appended to files that terminate in something other than a data
 chunk, and multiple data chunks are not supported.
 
+Memory mapping is only supported for read-only modes on Windows.
+
 Users interested in access to more complex WAVE and non-WAVE files and
 who do not mind external library dependencies should consider one of
 these wrappers to libsndfile:
