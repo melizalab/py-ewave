@@ -3,6 +3,7 @@
 # Created Tue Aug 14 15:03:19 2012
 from pathlib import Path
 
+import sys
 import numpy as np
 import pytest
 from numpy.testing import assert_array_almost_equal
@@ -118,9 +119,23 @@ def test08_clipping():
     assert ewave.rescale(ewave.rescale([1.01], "i"), "f")[0] == pytest.approx(1.0)
 
 
-def test09_read_examples():
-    for mmap in (False, "c", "r"):
-        for fname in test_dir.glob("*.wav"):
+def test09_read_examples_nomemmap(test_files):
+    for fname in test_files:
+        with ewave.open(fname, "r") as fp:
+            assert fp.mode == "r"
+            data = fp.read(memmap=False)
+            if fp.nchannels == 1:
+                assert data.ndim == 1
+                assert data.size == fp.nframes
+            else:
+                assert data.shape[0] == fp.nframes
+                assert data.shape[1] == fp.nchannels
+
+
+@pytest.mark.skipif(sys.platform == "win32", reason="memmap not supported on windows")
+def test09_read_examples_memmap(test_files):
+    for mmap in ("c", "r"):
+        for fname in test_files:
             with ewave.open(fname, "r") as fp:
                 assert fp.mode == "r"
                 data = fp.read(memmap=mmap)
@@ -132,8 +147,8 @@ def test09_read_examples():
                     assert data.shape[1] == fp.nchannels
 
 
-def test10_open_unsupported():
-    for fname in unsupported_dir.glob("*.wav"):
+def test10_open_unsupported(unsupported_files):
+    for fname in unsupported_files:
         with pytest.raises(ewave.Error):
             _ = ewave.open(fname, "r")
 
@@ -155,9 +170,9 @@ def test11_write_examples(tmp_file):
             assert ofp.nframes == ifp.nframes
 
 
-def test12_convert(tmp_file):
+def test12_convert(tmp_file, test_files):
     for tgt_type in ("f", "h"):
-        for fname in test_dir.glob("*.wav"):
+        for fname in test_files:
             with ewave.open(fname, "r") as ifp, ewave.open(
                 tmp_file,
                 "w",
@@ -173,6 +188,7 @@ def test12_convert(tmp_file):
                 assert ofp.nframes == ifp.nframes
 
 
+@pytest.mark.skipif(sys.platform == "win32", reason="memmap not supported on windows")
 def test13_readwrite(tmp_file):
     for fname in test_dir.glob("*.wav"):
         with ewave.open(fname, "r") as ifp:
@@ -197,7 +213,8 @@ def test13_readwrite(tmp_file):
                 assert_array_almost_equal(d1, d2)
 
 
-def test14_modify(tmp_file):
+@pytest.mark.skipif(sys.platform == "win32", reason="memmap not supported on windows")
+def test14_modify_with_memmap(tmp_file):
     data = np.random.randn(10000, nchan)
     with ewave.open(tmp_file, "w+", sampling_rate=Fs, dtype="f", nchannels=nchan) as fp:
         fp.write(data)
