@@ -1,9 +1,9 @@
 # -*- mode: python -*-
 # Copyright (C) 2012 Dan Meliza <dan@meliza.org>
 # Created Tue Aug 14 15:03:19 2012
+import sys
 from pathlib import Path
 
-import sys
 import numpy as np
 import pytest
 from numpy.testing import assert_array_almost_equal
