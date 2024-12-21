@@ -51,10 +51,9 @@ Homepage = "https://github.com/melizalab/py-ewave"
 
 [dependency-groups]
 dev = [
-    "pytest>=7.0,<8.0; python_version > '3.7'",
-    "pytest>=6.0,<7.0; python_version == '3.7'",
+    "pytest>=5.0",
     "ruff>=0.7.0",
-    "numpy>=1.24.0,<1.25.0; python_version == '3.11'"  # Pin numpy version for testing on Python 3.11
+    "respx>=0.20"
 ]
 
 [tool.hatch.version]

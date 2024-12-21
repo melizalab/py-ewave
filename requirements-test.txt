@@ -1,0 +1,5 @@
+numpy>=1.24.0,<1.25.0; python_version == '3.11'
+pytest>=7.0,<8.0; python_version >= '3.8'
+pytest>=5.0,<6.0; python_version >= '3.7' and python_version < '3.8' and platform_system == 'Windows'
+pytest>=6.0,<7.0; python_version >= '3.7' and python_version < '3.8' and platform_system != 'Windows'
+respx>=0.20

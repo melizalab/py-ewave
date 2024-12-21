@@ -36,7 +36,8 @@ jobs:
         python-version: ${{ matrix.python-version }}
     - name: Install dependencies
       run: |
-        uv sync --frozen
+        uv pip install -r requirements-test.txt
+        uv pip install -e .
     - name: Fetch test files
       run: |
         test/fetch_examples.sh
