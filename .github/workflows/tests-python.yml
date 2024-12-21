@@ -16,6 +16,8 @@ jobs:
             python-version: "pypy3.7"
           - os: windows-latest
             python-version: "pypy3.7"
+          - os: windows-latest
+            python-version: "pypy3.8"
           - os: macos-13
             python-version: "3.13"
           - os: ubuntu-latest
