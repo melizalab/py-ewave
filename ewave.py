@@ -27,6 +27,7 @@ libsndfile for those sorts of files.
 Copyright (C) 2012-2023 Dan Meliza <dan // AT // meliza.org>
 
 """
+
 from pathlib import Path
 from typing import BinaryIO, Optional, Union
 
