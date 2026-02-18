@@ -1,34 +1,30 @@
 name: Python tests
-
-on: push
+on:
+  pull_request:
+  push:
+    branches:
+      - master
 
 jobs:
   build:
     strategy:
       fail-fast: false
       matrix:
-        os: [macos-13, macos-14, ubuntu-22.04, windows-latest]
-        python-version: ["3.8", "3.9", "3.10", "3.11", "3.12", "3.13", "pypy3.8", "pypy3.9", "pypy3.10"]
-        exclude:
-          - os: windows-latest
-            python-version: "pypy3.8"
+        os: [macos-15-intel, macos-15, ubuntu-24.04, windows-latest]
+        python-version: ["3.11", "3.12", "3.13", "3.14", "pypy3.10" "pypy3.11"]
     runs-on: ${{ matrix.os }}
 
     steps:
     - uses: actions/checkout@v6
-    - name: Install uv
+    - name: Install uv with Python ${{ matrix.python-version }}
       uses: astral-sh/setup-uv@v7
       with:
         enable-cache: true
-    - name: Set up Python ${{ matrix.python-version }}
-      uses: actions/setup-python@v6
-      with:
+        version: "latest"
         python-version: ${{ matrix.python-version }}
     - name: Install dependencies
       run: |
-        uv venv
-        uv pip install -r requirements-test.txt
-        uv pip install -e .
+        uv sync --frozen
     - name: Fetch test files
       run: |
         test/fetch_examples.sh
