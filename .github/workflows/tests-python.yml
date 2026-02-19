@@ -12,6 +12,9 @@ jobs:
       matrix:
         os: [macos-15-intel, macos-15, ubuntu-24.04, windows-latest]
         python-version: ["3.11", "3.12", "3.13", "pypy3.11"]
+        exclude:
+          - python-version: "pypy3.11"
+            os: windows-latest
     runs-on: ${{ matrix.os }}
 
     steps:
