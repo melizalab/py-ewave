@@ -1,6 +1,8 @@
 name: Build and publish distribution to pypi
-
-on: push
+on:
+  push:
+    branches:
+      - master
 
 jobs:
   build:
