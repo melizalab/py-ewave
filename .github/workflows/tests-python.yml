@@ -28,7 +28,14 @@ jobs:
     - name: Install dependencies
       run: |
         uv sync --frozen
+    - name: Cache test files
+      id: cache-test-files
+      uses: actions/cache@v4
+      with:
+        path: test
+        key: test-files-${{ hashFiles('test/fetch_examples.sh') }}
     - name: Fetch test files
+      if: steps.cache-test-files.outputs.cache-hit != 'true'
       run: |
         test/fetch_examples.sh
     - name: Run tests on python ${{ matrix.python-version }}
