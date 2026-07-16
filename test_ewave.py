@@ -155,13 +155,16 @@ def test10_open_unsupported(unsupported_files):
 
 def test11_write_examples(tmp_file):
     for fname in test_dir.glob("*.wav"):
-        with ewave.open(fname, "r") as ifp, ewave.open(
-            tmp_file,
-            "w",
-            sampling_rate=ifp.sampling_rate,
-            dtype=ifp.dtype,
-            nchannels=ifp.nchannels,
-        ) as ofp:
+        with (
+            ewave.open(fname, "r") as ifp,
+            ewave.open(
+                tmp_file,
+                "w",
+                sampling_rate=ifp.sampling_rate,
+                dtype=ifp.dtype,
+                nchannels=ifp.nchannels,
+            ) as ofp,
+        ):
             assert ofp.filename == str(tmp_file)
             assert ofp.sampling_rate == ifp.sampling_rate
             assert ofp.nchannels == ifp.nchannels
@@ -173,13 +176,16 @@ def test11_write_examples(tmp_file):
 def test12_convert(tmp_file, test_files):
     for tgt_type in ("f", "h"):
         for fname in test_files:
-            with ewave.open(fname, "r") as ifp, ewave.open(
-                tmp_file,
-                "w",
-                sampling_rate=ifp.sampling_rate,
-                dtype=tgt_type,
-                nchannels=ifp.nchannels,
-            ) as ofp:
+            with (
+                ewave.open(fname, "r") as ifp,
+                ewave.open(
+                    tmp_file,
+                    "w",
+                    sampling_rate=ifp.sampling_rate,
+                    dtype=tgt_type,
+                    nchannels=ifp.nchannels,
+                ) as ofp,
+            ):
                 assert ofp.filename == str(tmp_file)
                 assert ofp.sampling_rate == ifp.sampling_rate
                 assert ofp.nchannels == ifp.nchannels

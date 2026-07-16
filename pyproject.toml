@@ -30,6 +30,7 @@ classifiers = [
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
     "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.14",
     "Programming Language :: Python :: Implementation :: CPython",
     "Programming Language :: Python :: Implementation :: PyPy"
 ]
@@ -58,23 +59,20 @@ path = "ewave.py"
 python_files = ["test_*.py", "*_test.py"]
 testpaths = ["."]
 
-[tool.black]
-line-length = 88
-target-version = ["py37"]
-include = '\.pyi?$'
-
 [tool.ruff]
 line-length = 88
-target-version = "py37"
+target-version = "py311"
 extend-exclude = ["build", "attic"]
 
 [tool.ruff.lint]
 select = [
-    "E",  # pycodestyle errors
-    "W",  # pycodestyle warnings
     "F",  # pyflakes
-    "I",  # isort
-    "B",  # flake8-bugbear
+    "B",   # flake8-bugbear
+    "I",   # isort
+    "PGH", # pygrep-hooks
+    "RUF", # Ruff-specific
+    "UP",  # pyupgrade
+    "NPY201", # numpy 2.0
 ]
 ignore = ["E221", "E501", "E701"]
 

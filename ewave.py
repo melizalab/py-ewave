@@ -29,7 +29,7 @@ Copyright (C) 2012-2023 Dan Meliza <dan // AT // meliza.org>
 """
 
 from pathlib import Path
-from typing import BinaryIO, Optional, Union
+from typing import BinaryIO
 
 import numpy as np
 import numpy.typing as npt
@@ -45,7 +45,7 @@ WAVE_FORMAT_PCM = 0x0001
 WAVE_FORMAT_IEEE_FLOAT = 0x0003
 WAVE_FORMAT_EXTENSIBLE = 0xFFFE
 
-__version__ = "1.0.11"
+__version__ = "1.0.12"
 
 
 class Error(Exception):
@@ -73,7 +73,7 @@ class wavfile:
 
     def __init__(
         self,
-        file: Union[str, Path, BinaryIO],
+        file: str | Path | BinaryIO,
         mode: str = "r",
         sampling_rate: int = 20000,
         dtype: npt.DTypeLike = "h",
@@ -150,15 +150,7 @@ class wavfile:
         return self._dtype
 
     def __repr__(self) -> str:
-        return "<open %s.%s '%s', mode '%s', dtype '%s', sampling rate %d at %s>" % (
-            self.__class__.__module__,
-            self.__class__.__name__,
-            self.filename,
-            self.mode,
-            self.dtype,
-            self.sampling_rate,
-            hex(id(self)),
-        )
+        return f"<open {self.__class__.__module__}.{self.__class__.__name__} '{self.filename}', mode '{self.mode}', dtype '{self.dtype}', sampling rate {self.sampling_rate} at {hex(id(self))}>"
 
     def flush(self):
         """Flushes data to disk and update header with correct size information"""
@@ -175,9 +167,9 @@ class wavfile:
 
     def read(
         self,
-        frames: Optional[int] = None,
+        frames: int | None = None,
         offset: int = 0,
-        memmap: Union[str, bool, None] = "c",
+        memmap: str | bool | None = "c",
     ) -> np.ndarray:
         """Returns acoustic data from file.
 
@@ -297,15 +289,15 @@ class wavfile:
             self._tag,
             self._nchannels,
             self._framerate,
-            nAvgBytesPerSec,
-            wBlockAlign,
+            _nAvgBytesPerSec,
+            _wBlockAlign,
             bits,
         ) = struct.unpack(b"<HHLLHH", self._fmt_chunk.read(16))
         # load extended block if it's there
         if self._tag == WAVE_FORMAT_EXTENSIBLE:
             if self._fmt_chunk.chunksize < 16:
                 raise Error("extensible format but no format extension")
-            cbSize, wValidBits, dwChannelMask, self._tag = struct.unpack(
+            _cbSize, _wValidBits, _dwChannelMask, self._tag = struct.unpack(
                 b"<hhlH", self._fmt_chunk.read(10)
             )
         if self._tag == WAVE_FORMAT_PCM:
@@ -317,18 +309,18 @@ class wavfile:
             elif bits <= 16:
                 self._dtype = dtype("<h")
             elif bits <= 24:
-                raise Error("unsupported bit depth: %d" % bits)
+                raise Error(f"unsupported bit depth: {bits}")
             elif bits <= 32:
                 self._dtype = dtype("<i")
             elif bits == 64:
                 self._dtype = dtype("<l")
             else:
-                raise Error("unsupported bit depth: %d" % bits)
+                raise Error(f"unsupported bit depth: {bits}")
         elif self._tag == WAVE_FORMAT_IEEE_FLOAT:
             try:
-                self._dtype = dtype("float%d" % bits)
+                self._dtype = dtype(f"float{bits}")
             except TypeError as err:
-                raise Error("unsupported bit depth for IEEE floats: %d" % bits) from err
+                raise Error(f"unsupported bit depth for IEEE floats: {bits}") from err
         else:
             raise Error(f"unsupported format: {self._tag}")
         self._data_offset = self._data_chunk.offset + 8
@@ -441,7 +433,7 @@ def rescale(data: npt.ArrayLike, tgt_dtype: npt.DTypeLike) -> np.ndarray:
     else:
         raise Error(f"unsupported target type {tgt}")
 
-    if src.kind != tgt.kind and src.kind == "u" or tgt.kind == "u":
+    if (src.kind != tgt.kind and src.kind == "u") or tgt.kind == "u":
         out += asarray(1, dtype=tgt) << tgt.itemsize * 8 - 1
 
     return out
